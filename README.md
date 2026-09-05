@@ -1,5 +1,7 @@
 # ESP32 RFID Switch
 
+**WORK IN PROGRESS**
+
 An ESP32-based presence switch using an M5Stack UHF RFID reader. A configured RFID tag keeps an output active while it is detected. The project provides two Web Config examples and one M5Stack Core2 touch-configured example:
 
 - `rfid-switch-relay` drives a local relay on the GPIO defined by the example; its current default is GPIO 47.
