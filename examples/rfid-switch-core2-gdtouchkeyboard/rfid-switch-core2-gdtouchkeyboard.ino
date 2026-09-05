@@ -401,6 +401,7 @@ static void saveTouchConfiguration()
 
 static void runTouchConfiguration()
 {
+    M5.Display.setBrightness(255);
     size_t selectedField = 0;
     while (true)
     {
@@ -425,6 +426,7 @@ static void runTouchConfiguration()
             if (hasValidConfiguration())
             {
                 saveTouchConfiguration();
+                M5.Display.setBrightness(0);
                 return;
             }
             drawConfigurationOverview(selectedField, "Required fields are missing");
@@ -547,8 +549,14 @@ static void enterSleep()
 void setup()
 {
     M5.begin();
-    M5.Display.setBrightness(255);
+    M5.Display.setBrightness(0);
+#if defined(RFID_SWITCH_VARIANT_RELAY)
+    M5.Power.setLed(rtcStateMagic == RTC_STATE_MAGIC && rtcSwitchEnabled
+                        ? 255
+                        : 0);
+#else
     M5.Power.setLed(0);
+#endif
     Serial.begin(115200);
     Serial.setDebugOutput(true);
     delay(500);
@@ -578,8 +586,6 @@ void setup()
         runTouchConfiguration();
         log_i("[CONFIG] Touch configuration returned.");
     }
-
-    M5.Display.setBrightness(0);
 
     tagConfig.epc = configuredEpc;
     tagConfig.tid = configuredTid;
