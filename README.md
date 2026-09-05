@@ -1,0 +1,308 @@
+# ESP32 RFID Switch
+
+An ESP32-based presence switch using an M5Stack UHF RFID reader. A configured RFID tag keeps an output active while it is detected. The project provides two Web Config examples and one M5Stack Core2 touch-configured example:
+
+- `rfid-switch-relay` drives a local relay on the GPIO defined by the example; its current default is GPIO 47.
+- `rfid-switch-shelly` controls Switch 0 of a Shelly device over Bluetooth Low Energy (BLE).
+- `rfid-switch-core2-gdtouchkeyboard` combines both output paths for M5Stack Core2 and uses `GDTouchKeyboard` instead of the Web Config portal.
+
+The project is intended for periodic, low-power operation. Each wake performs an RFID scan, validates the configured tag, updates the output, and returns to sleep when the selected example allows it.
+
+## Contents
+
+- [Features](#features)
+- [How It Works](#how-it-works)
+- [Hardware](#hardware)
+- [Dependencies](#dependencies)
+- [Installation](#installation)
+- [Wiring](#wiring)
+- [Tag Preparation](#tag-preparation)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [Runtime Behavior](#runtime-behavior)
+- [Security Limitations](#security-limitations)
+- [Troubleshooting](#troubleshooting)
+- [Development and Testing](#development-and-testing)
+- [License](#license)
+
+## Features
+
+- EPC (Electronic Product Code) and TID (Tag Identifier) validation for a configured RFID tag.
+- Optional validation of a four-byte token stored in RFID User Memory.
+- Web-based first-boot configuration stored in ESP32 non-volatile storage.
+- Local relay output or Shelly BLE output.
+- Periodic scanning with a configurable presence-removal threshold; the examples default to three missed scans.
+- Low-power sleep between scans.
+
+## How It Works
+
+On each scan, the reader looks for the configured EPC. If the EPC matches, the reader selects the tag, reads its TID from memory bank `0x02`, and checks the configured TID as a case-insensitive prefix. Both EPC and TID must be configured and must match for the tag to be valid.
+
+If a token is configured, the reader also reads User Memory bank `0x03` using the configured 32-bit access password. The token must contain exactly four bytes and must match the configured eight-character hexadecimal value.
+
+A valid scan resets the missed-scan counter and enables the output. An invalid or absent scan increments the counter. The output turns off after the configured number of consecutive missed scans; the examples use three.
+
+The relay example wakes at the configured sleep interval, which defaults to five seconds. The sleep mode depends on whether the relay's configured GPIO is RTC-capable. An RTC-capable GPIO is connected to the ESP32 RTC GPIO subsystem and can retain its output level through deep sleep using GPIO hold; otherwise the example uses light sleep. Shelly mode uses deep sleep on every cycle and reconnects to the Shelly device after waking.
+
+The following flow describes the runtime behavior of both examples. The relay and Shelly branches differ in how they update the output and enter sleep.
+
+```mermaid
+flowchart TD
+  start([Boot or wake]) --> configured{Configured?}
+  configured -- No --> portal[Open setup portal]
+  portal --> sleep
+  configured -- Yes --> scan[Scan for RFID tag]
+
+  scan --> epc{EPC matches?}
+  epc -- No --> miss[Increment missed-scan count]
+  epc -- Yes --> tid[Read TID from bank 0x02]
+  tid --> tid_match{TID prefix matches?}
+  tid_match -- No --> miss
+  tid_match -- Yes --> token_configured{Token configured?}
+  token_configured -- Yes --> token[Read User Memory bank 0x03]
+  token --> token_match{Token matches?}
+  token_match -- No --> miss
+  token_match -- Yes --> present[Valid tag]
+  token_configured -- No --> present
+
+  present --> reset[Reset missed-scan count]
+  reset --> output_on[Enable output]
+  output_on --> mode{Output mode}
+  mode -- Relay --> relay_sleep[Relay sleep path]
+  mode -- Shelly BLE --> shelly[Connect and update Shelly Switch 0]
+  shelly --> shelly_sleep[Shelly deep sleep]
+
+  miss --> threshold{Miss threshold reached?}
+  threshold -- No --> sleep[Sleep until next cycle]
+  threshold -- Yes --> output_off[Disable output]
+  output_off --> sleep
+  relay_sleep --> sleep
+  shelly_sleep --> sleep
+  sleep --> scan
+```
+
+The editable source is [`rfid-switch-runtime-flow.mmd`](rfid-switch-runtime-flow.mmd).
+
+## Hardware
+
+- **Featured target:** [Waveshare ESP32-S3-Relay-1CH](https://www.waveshare.com/esp32-s3-relay-1ch.htm), an ESP32-S3 board with an integrated one-channel relay in a rail-mount housing. See the manufacturer's [ESP32-S3-Relay-1CH Wiki](https://www.waveshare.com/wiki/ESP32-S3-Relay-1CH) for board documentation. In the Arduino IDE, select **ESP32S3 Dev Module** (FQBN `esp32:esp32:esp32s3`).
+- **Featured target:** [M5Stack Core2](https://docs.m5stack.com/en/core/core2), an ESP32-based controller with an AXP192 power-management chip, display, buttons, and M-BUS/Port A expansion. In the Arduino IDE, select the **M5Stack-Core2** board definition (FQBN `esp32:esp32:m5stack_core2`) and install the M5Unified library.
+- **Optional mounting accessory:** [M5Stack Guide Rail](https://docs.m5stack.com/en/accessory/guide_rail), an M5Base-series expansion base with spring-loaded rail mounting and M3 screw holes. It can be used when building a rail-mounted Core2 assembly.
+- M5Stack UHF RFID reader.
+- One or more compatible UHF RFID tags.
+- Either:
+  - a local relay connected to the relay example output, or
+  - a Shelly device that exposes Switch 0 through the supported BLE RPC library.
+
+> [!NOTE]
+> On the featured Waveshare target, relay control uses GPIO 47, which is not RTC-capable. The relay example therefore uses light sleep rather than deep sleep, and the relay output cannot be retained through deep sleep. Other ESP32 hardware may use a different relay GPIO; check the existing hardware definition before changing the example.
+
+> [!NOTE]
+> On the featured M5Stack Core2 target, the relay output is GPIO 32 on Port A (yellow pin). GPIO 32 is RTC-capable, so the relay example uses deep sleep with GPIO hold to retain the relay state between scans. The Core2 display is switched off, and the built-in AXP192 power LED indicates the relay state. During web configuration, the power LED blinks instead.
+
+### Electrical safety
+
+The Shelly wiring option can involve 230 V mains voltage. Shelly pins may carry lethal voltage and are not necessarily galvanically isolated from mains. Do not connect or change external wiring while the device is energized. Use an enclosure, suitable clearances, and appropriate mains-rated components, and have installation performed by a qualified person.
+
+The ESP32 uses 3.3 V logic. Check voltage levels before connecting any signal. This example does not use, and must not be wired to, the Shelly device's internal connector.
+
+## Dependencies
+
+The library declares these dependencies in [`library.properties`](library.properties):
+
+- [M5Unit-UHF-RFID](https://github.com/matthias-bs/M5Unit-UHF-RFID) (fork)
+- [esp32-shelly-ble-rpc](https://github.com/matthias-bs/esp32-shelly-ble-rpc)
+- [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)
+- [GDTouchKeyboard](https://github.com/matthias-bs/GDTouchKeyboard) (required by the Core2 touch example)
+
+You also need an ESP32 Arduino core and a board definition compatible with the selected example.
+
+## Installation
+
+1. Install the ESP32 board package in the Arduino IDE or PlatformIO environment.
+2. Install the libraries listed above.
+3. Open one of the example sketches under `examples/`.
+4. Select the target ESP32 board and serial port.
+5. Compile and upload the sketch.
+6. On first startup, connect to the configuration access point and enter the RFID settings. Shelly mode also requires a Shelly address or name filter.
+
+For the featured Waveshare target, select the ESP32 Arduino board definition with FQBN `esp32:esp32:esp32s3`. For the featured M5Stack Core2 target, compile with FQBN `esp32:esp32:m5stack_core2`. This repository does not include an IDE project file, so the board and serial port must still be selected in your local Arduino environment.
+
+## Wiring
+
+### RFID reader
+
+The examples configure the UHF reader on the ESP32 UART with:
+
+| Signal | ESP32 GPIO |
+| --- | ---: |
+| RFID RX | 16 |
+| RFID TX | 17 |
+
+Connect the reader's TX signal to ESP32 RX and its RX signal to ESP32 TX. Confirm the reader's power requirements and logic levels for your particular hardware.
+
+The examples use Europe region `3` and TX power `2600`. Make sure the selected region and transmit power comply with local regulations.
+
+For the featured M5Stack Core2 target, connect the M5Stack UHF RFID reader to Port A:
+
+| RFID reader signal | Core2 GPIO |
+| --- | ---: |
+| RFID RX | 13 |
+| RFID TX | 14 |
+
+Connect the reader's TX signal to Core2 GPIO 13 (ESP32 RX) and its RX signal to Core2 GPIO 14 (ESP32 TX). Use the Port A power and ground connections as specified by the reader and Core2 documentation. The sketch selects these pins automatically when `ARDUINO_M5STACK_CORE2` is defined.
+
+### Local relay
+
+The relay example currently uses GPIO 47 as its output. Use the GPIO defined by the existing hardware and change the example's relay-pin definition if necessary. The relay module must be suitable for the load and powered according to its specifications. Do not connect mains wiring directly to an ESP32 GPIO.
+
+For the featured M5Stack Core2 target, connect the relay input to GPIO 32 on Port A (the yellow signal pin). The sketch drives the relay input HIGH for enabled and LOW for disabled. Because GPIO 32 supports RTC GPIO hold, the output state is retained while the relay example is in deep sleep.
+
+Suitable M5Stack actuator units include the [2Relay Unit](https://docs.m5stack.com/en/unit/2relay), the [Unit Relay](https://docs.m5stack.com/en/unit/relay), and the [Unit SSR](https://docs.m5stack.com/en/unit/ssr). The 2Relay and Unit Relay provide mechanically switched relay outputs, while the Unit SSR provides zero-crossing solid-state switching for AC loads. Check each unit's voltage, load, and wiring specifications before use.
+
+Relay state retention during sleep depends on whether the selected relay GPIO supports RTC hold on the board. The sketch detects this capability and falls back to light sleep when it is unavailable.
+
+### M5Stack Core2 controls and LED
+
+On Core2, press **Button A** during the first three seconds after reset to open configuration mode. Other supported boards use BOOT/GPIO 0 instead. The display backlight is disabled by the example.
+
+The built-in power LED is controlled through the Core2 AXP192 power-management chip with `M5.Power.setLed()`. It is off when the relay is off and on when the relay is on. While the web configuration portal is active, it blinks to indicate configuration mode. This LED is not a general-purpose GPIO output.
+
+### Shelly BLE
+
+The Shelly example communicates with the configured Shelly device over BLE and controls Switch 0. Direct BLE address configuration takes precedence over name-based scanning. If no address is configured, the example scans for five seconds and applies the configured name filter.
+
+Do not infer a safe mains wiring arrangement from the low-voltage UART wiring above. Follow the Shelly model's documentation and the safety requirements in [Electrical safety](#electrical-safety).
+
+## Tag Preparation
+
+The main examples do not write tags. Use the tag-writer sketch at [`m5stack/RFID_Write/RFID_Write.ino`](../m5stack/RFID_Write/RFID_Write.ino) to inspect or provision a tag from the parent project.
+
+The tag writer uses Europe region `3`, TX power `2600`, and writes the default User Memory payload `DE AD BE EF`. Its UART pins are GPIO 16/17 when `ARDUINO_ESP32_DEV` is defined, and GPIO 1/2 otherwise. Review the sketch before compiling it for a different board.
+
+The writer contains commented compile-time options for access-password support, User Memory locking, and skipping the write operation. Enable these only after understanding the tag's memory layout and access behavior.
+
+Record the following values for the configuration portal:
+
+- **EPC:** the tag EPC, as an even-length hexadecimal string.
+- **TID:** the tag TID, as an even-length hexadecimal string. The configured value is matched as a prefix, so a shorter prefix can be used when appropriate.
+- **Password:** optional 32-bit access password, represented by exactly eight hexadecimal characters. An empty password is treated as `00000000`.
+- **Token:** optional four-byte User Memory value, represented by exactly eight hexadecimal characters.
+
+EPC and TID are both required for runtime validation, even though the current portal field validators permit empty values. A configuration with either field empty will not validate a tag.
+
+## Configuration
+
+On first boot, or when configuration is requested, the ESP32 starts an access point:
+
+- SSID: `RFID-Switch-Setup`
+- Password: `12345678`
+- Portal: `http://192.168.4.1/`
+- Timeout: 300 seconds
+
+Connect to the access point, open the portal, and enter the RFID fields described in [Tag Preparation](#tag-preparation). The settings are stored in the NVS namespace `shelly-ble` under the fields `configured`, `ble_address`, `name_filter`, `epc`, `tid`, `password`, and `token`.
+
+To reopen configuration after startup, use the board-specific button during the first three seconds after reset:
+
+- **M5Stack Core2:** press **Button A**.
+- **Other supported boards:** hold the ESP32 **BOOT** button, which is GPIO 0, low.
+
+The exact button and reset behavior depends on the selected board.
+
+For Shelly mode, configure either:
+
+- a colon-separated six-byte BLE address, or
+- an exact, case-sensitive device name filter of up to 40 characters.
+
+When both are configured, the direct BLE address is used first. Shelly pairing or bonding is not provided as a documented workflow by this project.
+
+## Examples
+
+### `rfid-switch-relay`
+
+Use this example when the ESP32 directly controls a relay. It scans at the configured sleep interval, which defaults to five seconds, drives the relay GPIO defined by the example, and uses deep sleep with RTC GPIO hold only when that GPIO supports it on the selected board. Change `RFID_SLEEP_DURATION_SECONDS` in the example to adjust the interval, then recompile and upload the sketch.
+
+For M5Stack Core2, the example uses Button A for configuration, GPIO 32 on Port A for the relay, GPIO 13/14 for the UHF reader, and the built-in power LED as a relay/configuration indicator.
+
+### `rfid-switch-shelly`
+
+Use this example when the output is a Shelly device controlled over BLE. It reconnects after each wake, targets Shelly Switch 0, and enters deep sleep between cycles. A connection or RPC failure does not falsely mark the Shelly output as changed.
+
+### `rfid-switch-core2-gdtouchkeyboard`
+
+Use this example on an M5Stack Core2 when configuration should be entered locally on the touchscreen instead of through a Wi-Fi access point. The sketch contains both the relay and Shelly BLE output paths, selected at compile time with `RFID_SWITCH_VARIANT_RELAY` or `RFID_SWITCH_VARIANT_SHELLY`. The relay variant is the default; see the example README for the Shelly compiler flag and Core2 controls.
+
+### RFID tag writer
+
+The tag writer is located outside this library repository at [`m5stack/RFID_Write/RFID_Write.ino`](../m5stack/RFID_Write/RFID_Write.ino). It is a provisioning utility, not part of either runtime example.
+
+## Runtime Behavior
+
+The presence controller is called once per wake by both examples. The examples use a removal threshold of three missed scans:
+
+| Condition | Result |
+| --- | --- |
+| Valid EPC, TID, and optional token | Miss counter resets; output is enabled |
+| No tag or invalid tag | Miss counter increments |
+| Configured number of consecutive missed scans reached | Output is disabled |
+| Shelly connection failure | No output-state update is reported |
+
+The relay example wakes on a configurable timer, set to five seconds by default in the example. Its output retention during sleep is board-dependent. Shelly mode disconnects after each loop and performs a fresh BLE connection after the next wake.
+
+## Security Limitations
+
+This project is an identification and presence mechanism, not cryptographic authentication.
+
+- EPC values can be read and cloned.
+- TID checks and User Memory tokens add validation conditions but do not establish a cryptographic identity.
+- An access password can protect User Memory operations on supported tags, but it does not make the EPC a secret.
+- Physical access to the tag and reader should be considered when assessing the system.
+
+Do not use this project as the sole security control for safety-critical access, locks, or other systems where tag cloning must be prevented.
+
+## Troubleshooting
+
+### The Core2 touch configuration does not appear
+
+- Confirm that the `rfid-switch-core2-gdtouchkeyboard` example is running on an M5Stack Core2.
+- Press Button A during the first three seconds after reset to force configuration.
+- Use the overview controls to edit fields, then hold Button B to finish. EPC and TID must be valid even-length hexadecimal values.
+- Recompile after changing the relay/Shelly compile-time variant.
+
+### The configuration portal does not appear
+
+- Confirm that the sketch is running and the ESP32 has completed reset.
+- Check that the device is not already configured.
+- On M5Stack Core2, press Button A during the first three seconds after reset. On other supported boards, hold BOOT/GPIO 0 low during that window.
+- Connect to `RFID-Switch-Setup` and browse to `192.168.4.1`.
+- Check serial output and allow for the five-minute portal timeout.
+
+### A known tag is rejected
+
+- Confirm that EPC and TID are both configured and contain hexadecimal values.
+- Check EPC case and spelling; comparison is case-insensitive but exact.
+- Check the configured TID prefix against the tag's TID memory bank.
+- If a token is configured, verify the eight hexadecimal characters, access password, and User Memory contents.
+- Verify UART crossover wiring and reader power.
+
+### The relay does not retain its state during sleep
+
+The GPIO used for the relay must support RTC GPIO hold on the selected board for deep-sleep retention. RTC-capable GPIOs are connected to the ESP32's RTC GPIO subsystem, allowing their output level to be held during deep sleep. The sketch uses light sleep when the configured relay GPIO lacks that capability. Check the existing hardware definition and the board's GPIO and sleep support before changing the wiring or sketch.
+
+### Shelly mode cannot find or control the device
+
+- Confirm that the Shelly address is valid, or that the configured name matches exactly and with the correct case.
+- Keep the Shelly within BLE range during the scan.
+- Remember that a configured direct address takes precedence over name scanning.
+- Confirm that the target output is Switch 0.
+- Check serial output for connection and RPC failures.
+
+## Development and Testing
+
+The repository currently contains the Arduino library and examples but no automated test suite, board-specific FQBN, or project build configuration. Build each example in an ESP32 Arduino environment with the declared dependencies installed.
+
+When changing validation, sleep, or output behavior, test both examples on the intended hardware. In particular, verify relay behavior on the actual board because RTC GPIO support is board-dependent.
+
+## License
+
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE) for the full license text.

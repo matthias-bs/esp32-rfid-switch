@@ -1,0 +1,35 @@
+---
+title: ESP32 RFID Switch runtime flow
+---
+flowchart TD
+    start([Boot or wake]) --> configured{Configured?}
+    configured -- No --> portal[Open setup portal]
+    portal --> sleep
+    configured -- Yes --> scan[Scan for RFID tag]
+
+    scan --> epc{EPC matches?}
+    epc -- No --> miss[Increment missed-scan count]
+    epc -- Yes --> tid[Read TID from bank 0x02]
+    tid --> tid_match{TID prefix matches?}
+    tid_match -- No --> miss
+    tid_match -- Yes --> token_configured{Token configured?}
+    token_configured -- Yes --> token[Read User Memory bank 0x03]
+    token --> token_match{Token matches?}
+    token_match -- No --> miss
+    token_match -- Yes --> present[Valid tag]
+    token_configured -- No --> present
+
+    present --> reset[Reset missed-scan count]
+    reset --> output_on[Enable output]
+    output_on --> mode{Output mode}
+    mode -- Relay --> relay_sleep[Relay sleep path]
+    mode -- Shelly BLE --> shelly[Connect and update Shelly Switch 0]
+    shelly --> shelly_sleep[Shelly deep sleep]
+
+    miss --> threshold{Miss threshold reached?}
+    threshold -- No --> sleep[Sleep until next cycle]
+    threshold -- Yes --> output_off[Disable output]
+    output_off --> sleep
+    relay_sleep --> sleep
+    shelly_sleep --> sleep
+    sleep --> scan
