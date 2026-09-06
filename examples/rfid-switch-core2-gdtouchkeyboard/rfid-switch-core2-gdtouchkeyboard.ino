@@ -11,14 +11,13 @@
 
 #if !defined(RFID_SWITCH_VARIANT_RELAY) && \
     !defined(RFID_SWITCH_VARIANT_SHELLY)
-#define RFID_SWITCH_VARIANT_RELAY
+#define RFID_SWITCH_VARIANT_SHELLY
 #endif
 
 #if defined(RFID_SWITCH_VARIANT_RELAY) && \
     defined(RFID_SWITCH_VARIANT_SHELLY)
 #error "Select exactly one RFID switch variant."
 #endif
-
 #if !defined(ARDUINO_M5STACK_CORE2)
 #error "This example requires an M5Stack Core2."
 #endif
@@ -500,6 +499,37 @@ static bool setSwitch(bool enabled, void *)
     return true;
 }
 #else
+static bool updatePowerLedFromResponse(const String &response)
+{
+    const int resultPosition = response.indexOf("\"result\"");
+    const int outputPosition = response.indexOf("\"output\"", resultPosition);
+    if (resultPosition < 0 || outputPosition < 0)
+    {
+        return false;
+    }
+
+    const int valuePosition = response.indexOf(':', outputPosition);
+    if (valuePosition < 0)
+    {
+        return false;
+    }
+
+    const String outputValue = response.substring(valuePosition + 1);
+    if (outputValue.startsWith("true"))
+    {
+        M5.Power.setLed(255);
+    }
+    else if (outputValue.startsWith("false"))
+    {
+        M5.Power.setLed(0);
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
 static bool setSwitch(bool enabled, void *)
 {
     if (!shelly.isConnected())
@@ -507,7 +537,12 @@ static bool setSwitch(bool enabled, void *)
         return false;
     }
     String response;
-    return shelly.switchSet(SHELLY_SWITCH_ID, enabled, response);
+    if (!shelly.switchSet(SHELLY_SWITCH_ID, enabled, response))
+    {
+        return false;
+    }
+    M5.Power.setLed(enabled ? 255 : 0);
+    return true;
 }
 
 static bool connectShelly()
@@ -517,13 +552,29 @@ static bool connectShelly()
     {
         return false;
     }
+    bool connected = false;
     if (configuredBleAddress.length() > 0)
     {
-        return shelly.connect(configuredBleAddress.c_str());
+        connected = shelly.connect(configuredBleAddress.c_str());
     }
-    return shelly.scanAndConnect(
-        SHELLY_SCAN_DURATION_MS,
-        configuredNameFilter.length() > 0 ? configuredNameFilter.c_str() : nullptr);
+    else
+    {
+        connected = shelly.scanAndConnect(
+            SHELLY_SCAN_DURATION_MS,
+            configuredNameFilter.length() > 0 ? configuredNameFilter.c_str() : nullptr);
+    }
+    if (!connected)
+    {
+        return false;
+    }
+
+    String response;
+    if (!shelly.switchGet(SHELLY_SWITCH_ID, response) ||
+        !updatePowerLedFromResponse(response))
+    {
+        M5.Power.setLed(0);
+    }
+    return true;
 }
 #endif
 
@@ -566,11 +617,13 @@ void setup()
     Serial.println("\n=== RFID Tag Switch - Core2 Touch Shelly BLE ===");
 #endif
     log_i("[BOOT] Wake cause: %d", static_cast<int>(esp_sleep_get_wakeup_cause()));
+#if defined(RFID_SWITCH_VARIANT_RELAY)
     log_i("[BOOT] Relay GPIO: %u (%s), reader RX/TX: %u/%u",
           RELAY_PIN,
           RELAY_PIN_IS_RTC_CAPABLE ? "RTC-capable" : "not RTC-capable",
           RFID_RX_PIN,
           RFID_TX_PIN);
+#endif
 
     loadConfig();
     log_i("[CONFIG] Stored config: %s, EPC='%s', TID='%s', token=%s",
