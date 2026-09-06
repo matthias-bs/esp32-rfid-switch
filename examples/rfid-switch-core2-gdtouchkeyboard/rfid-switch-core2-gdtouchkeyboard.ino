@@ -3,15 +3,15 @@
  *
  * This example uses GDTouchKeyboard instead of the Wi-Fi Web Config portal.
  * Select the output variant at compile time. With no external build define,
- * the relay variant is selected by default.
+ * the Relay variant is selected by default.
  *
- * To build the Shelly variant, define RFID_SWITCH_VARIANT_SHELLY and remove
- * RFID_SWITCH_VARIANT_RELAY, or change the default selection below.
+ * To build the Shelly variant, define RFID_SWITCH_VARIANT_SHELLY, or change
+ * the default selection below.
  */
 
 #if !defined(RFID_SWITCH_VARIANT_RELAY) && \
     !defined(RFID_SWITCH_VARIANT_SHELLY)
-#define RFID_SWITCH_VARIANT_SHELLY
+#define RFID_SWITCH_VARIANT_RELAY
 #endif
 
 #if defined(RFID_SWITCH_VARIANT_RELAY) && \
@@ -53,11 +53,15 @@ static const bool RELAY_PIN_IS_RTC_CAPABLE =
 #else
 static const uint32_t SHELLY_SCAN_DURATION_MS = 5000;
 static const uint8_t SHELLY_SWITCH_ID = 0;
+static const uint8_t SHELLY_LED_UNAVAILABLE = 16;
 #endif
 
 RTC_DATA_ATTR static uint32_t rtcStateMagic;
 RTC_DATA_ATTR static bool rtcSwitchEnabled;
 RTC_DATA_ATTR static uint8_t rtcMissedScans;
+#if defined(RFID_SWITCH_VARIANT_SHELLY)
+RTC_DATA_ATTR static bool rtcShellyStateKnown;
+#endif
 
 extern bool hasStoredConfig;
 extern String configuredBleAddress;
@@ -499,6 +503,18 @@ static bool setSwitch(bool enabled, void *)
     return true;
 }
 #else
+static void setShellyPowerLed(bool enabled)
+{
+    M5.Power.setLed(enabled ? 255 : 0);
+}
+
+static void indicateShellyUnavailable()
+{
+    rtcShellyStateKnown = false;
+    M5.Power.setLed(SHELLY_LED_UNAVAILABLE);
+    log_w("[SHELLY] Relay state unavailable; power LED dimmed.");
+}
+
 static bool updatePowerLedFromResponse(const String &response)
 {
     const int resultPosition = response.indexOf("\"result\"");
@@ -514,19 +530,22 @@ static bool updatePowerLedFromResponse(const String &response)
         return false;
     }
 
-    const String outputValue = response.substring(valuePosition + 1);
+    String outputValue = response.substring(valuePosition + 1);
+    outputValue.trim();
     if (outputValue.startsWith("true"))
     {
-        M5.Power.setLed(255);
+        rtcSwitchEnabled = true;
     }
     else if (outputValue.startsWith("false"))
     {
-        M5.Power.setLed(0);
+        rtcSwitchEnabled = false;
     }
     else
     {
         return false;
     }
+    rtcShellyStateKnown = true;
+    setShellyPowerLed(rtcSwitchEnabled);
     return true;
 }
 
@@ -534,14 +553,18 @@ static bool setSwitch(bool enabled, void *)
 {
     if (!shelly.isConnected())
     {
+        indicateShellyUnavailable();
         return false;
     }
     String response;
     if (!shelly.switchSet(SHELLY_SWITCH_ID, enabled, response))
     {
+        indicateShellyUnavailable();
         return false;
     }
-    M5.Power.setLed(enabled ? 255 : 0);
+    rtcSwitchEnabled = enabled;
+    rtcShellyStateKnown = true;
+    setShellyPowerLed(enabled);
     return true;
 }
 
@@ -550,6 +573,7 @@ static bool connectShelly()
     shelly.setDebug(false);
     if (!shelly.begin())
     {
+        indicateShellyUnavailable();
         return false;
     }
     bool connected = false;
@@ -565,14 +589,18 @@ static bool connectShelly()
     }
     if (!connected)
     {
+        indicateShellyUnavailable();
         return false;
     }
 
     String response;
-    if (!shelly.switchGet(SHELLY_SWITCH_ID, response) ||
-        !updatePowerLedFromResponse(response))
+    const bool requestSucceeded = shelly.switchGet(SHELLY_SWITCH_ID, response);
+    if (!requestSucceeded || !updatePowerLedFromResponse(response))
     {
-        M5.Power.setLed(0);
+          log_e("[SHELLY] Switch.GetStatus failed or returned an unexpected response: %s",
+              response.c_str());
+        indicateShellyUnavailable();
+        return false;
     }
     return true;
 }
@@ -606,7 +634,14 @@ void setup()
                         ? 255
                         : 0);
 #else
-    M5.Power.setLed(0);
+    if (rtcStateMagic == RTC_STATE_MAGIC && rtcShellyStateKnown)
+    {
+        setShellyPowerLed(rtcSwitchEnabled);
+    }
+    else
+    {
+        M5.Power.setLed(SHELLY_LED_UNAVAILABLE);
+    }
 #endif
     Serial.begin(115200);
     Serial.setDebugOutput(true);
@@ -645,11 +680,6 @@ void setup()
     tagConfig.accessPassword = configuredPassword;
     tagConfig.token = configuredToken;
 
-    const bool restoreState = rtcStateMagic == RTC_STATE_MAGIC;
-    log_i("[RTC] Saved state: %s, relay=%s, missed scans=%u",
-          restoreState ? "valid" : "none",
-          restoreState && rtcSwitchEnabled ? "ON" : "OFF",
-          restoreState ? rtcMissedScans : 0);
 #if defined(RFID_SWITCH_VARIANT_SHELLY)
     if (!connectShelly())
     {
@@ -657,8 +687,15 @@ void setup()
         enterSleep();
         return;
     }
+    const bool restoreState = rtcStateMagic == RTC_STATE_MAGIC &&
+                              rtcShellyStateKnown;
+#else
+    const bool restoreState = rtcStateMagic == RTC_STATE_MAGIC;
 #endif
-
+    log_i("[RTC] Saved state: %s, relay=%s, missed scans=%u",
+          restoreState ? "valid" : "none",
+          restoreState && rtcSwitchEnabled ? "ON" : "OFF",
+          restoreState ? rtcMissedScans : 0);
 #if defined(RFID_SWITCH_VARIANT_RELAY)
     if (restoreState)
     {
@@ -677,9 +714,11 @@ void setup()
         rtcMissedScans = 0;
 #if defined(RFID_SWITCH_VARIANT_SHELLY)
         shelly.disconnect();
-#endif
         log_e("[RFID] Reader initialization failed; output remains OFF.");
+#else
+    log_e("[RFID] Reader initialization failed; output remains OFF.");
         setSwitch(false, nullptr);
+#endif
         enterSleep();
         return;
     }
