@@ -141,7 +141,7 @@ static bool setShellySwitch(bool enabled, void *)
         indicateShellyUnavailable();
         return false;
     }
-    if (!shelly.switchGet(SHELLY_SWITCH_ID, response) ||
+    if (!shelly.switchGetStatus(SHELLY_SWITCH_ID, response) ||
         !updatePowerLedFromResponse(response)) {
         indicateShellyUnavailable();
         return false;
@@ -174,7 +174,7 @@ static bool connectShelly()
     }
 
     String response;
-    if (!shelly.switchGet(SHELLY_SWITCH_ID, response) ||
+    if (!shelly.switchGetStatus(SHELLY_SWITCH_ID, response) ||
         !updatePowerLedFromResponse(response)) {
         indicateShellyUnavailable();
         return false;
