@@ -201,6 +201,9 @@ static bool shouldEnterConfigMode() {
             delay(30);  // Simple debounce for Button A.
             M5.update();
             if (M5.BtnA.isPressed()) {
+                while (M5.BtnA.isPressed()) {
+                    M5.update();
+                }
                 return true;
             }
         }
@@ -246,6 +249,20 @@ static void shutdownWifi() {
     log_i("[WIFI] Wi-Fi is off.");
 }
 
+static void enterSleep() {
+    log_i("[SLEEP] Sleeping for %lu s (%s)",
+          static_cast<unsigned long>(RFID_SLEEP_DURATION_SECONDS),
+          RELAY_PIN_IS_RTC_CAPABLE ? "deep sleep" : "light sleep");
+
+    esp_sleep_enable_timer_wakeup(
+        static_cast<uint64_t>(RFID_SLEEP_DURATION_SECONDS) * 1000000ULL);
+    if (RELAY_PIN_IS_RTC_CAPABLE) {
+        esp_deep_sleep_start();
+    } else {
+        esp_light_sleep_start();
+    }
+}
+
 void setup() {
     #if defined(ARDUINO_M5STACK_CORE2)
     M5.begin();
@@ -255,8 +272,12 @@ void setup() {
     Serial.begin(115200);
     Serial.setDebugOutput(true);
     delay(500);
+    const esp_sleep_wakeup_cause_t wakeupCause = esp_sleep_get_wakeup_cause();
+    const bool isPowerOnOrReset = wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED;
     log_i("=== RFID Tag Switch - Relay ===");
-    log_i("[BOOT] Wake cause: %d", static_cast<int>(esp_sleep_get_wakeup_cause()));
+    log_i("[BOOT] Wake cause: %d (%s)",
+          static_cast<int>(wakeupCause),
+          isPowerOnOrReset ? "power-on/reset" : "sleep wake");
     log_i("[BOOT] Relay GPIO: %u (%s), reader RX/TX: %u/%u",
           RELAY_PIN,
           RELAY_PIN_IS_RTC_CAPABLE ? "RTC-capable" : "not RTC-capable",
@@ -319,6 +340,14 @@ void setup() {
         rtcRelayEnabled = false;
         rtcMissedScans = 0;
         setRelay(false, nullptr);
+        if (isPowerOnOrReset) {
+            log_w("[CONFIG] RFID reader unavailable after power-on/reset; starting config portal.");
+#if defined(ARDUINO_M5STACK_CORE2)
+            showConfigPortalScreen();
+            configPortalLoopCallback = blinkConfigLed;
+#endif
+            runConfigPortal();
+        }
         return;
     }
     log_i("[RFID] Reader initialized successfully.");
@@ -348,16 +377,8 @@ void loop() {
               rtcRelayEnabled ? "ON" : "OFF",
               rtcMissedScans,
               RFID_REMOVAL_MISSES);
-          log_i("[SLEEP] Sleeping for %lu s (%s)",
-              static_cast<unsigned long>(RFID_SLEEP_DURATION_SECONDS),
-              RELAY_PIN_IS_RTC_CAPABLE ? "deep sleep" : "light sleep");
-
-        esp_sleep_enable_timer_wakeup(
-            static_cast<uint64_t>(RFID_SLEEP_DURATION_SECONDS) * 1000000ULL);
-        if (RELAY_PIN_IS_RTC_CAPABLE) {
-            esp_deep_sleep_start();
-        } else {
-            esp_light_sleep_start();
-        }
+        enterSleep();
+    } else {
+        enterSleep();
     }
 }

@@ -12,9 +12,6 @@
 #include <rfid_switch_presence.h>
 
 static const int CONFIG_PIN = 0;
-#if defined(ARDUINO_M5STACK_CORE2)
-static const uint8_t CORE2_BUTTON_A_PIN = 37;
-#endif
 const uint32_t RECONFIG_WINDOW_MS = 3000;
 const char CONFIG_AP_SSID[] = "RFID-Switch-Setup";
 const char CONFIG_AP_PASSWORD[] = "12345678";
@@ -61,37 +58,26 @@ static RfidSwitchPresenceController *presenceController = nullptr;
 static bool shouldEnterConfigMode()
 {
 #if defined(ARDUINO_M5STACK_CORE2)
-    log_i("Press Button A within %lu ms after startup for web config mode.",
-          static_cast<unsigned long>(RECONFIG_WINDOW_MS));
+    log_i("Core2 touch Button A is unavailable in the lightweight Shelly example; "
+          "reader disconnect recovery is used instead.");
+    return false;
 #else
     log_i("Press BOOT within %lu ms after startup for web config mode.",
           static_cast<unsigned long>(RECONFIG_WINDOW_MS));
-#endif
 
     uint32_t startMs = millis();
     while (millis() - startMs < RECONFIG_WINDOW_MS) {
-        const bool configButtonPressed = digitalRead(
-#if defined(ARDUINO_M5STACK_CORE2)
-            CORE2_BUTTON_A_PIN
-#else
-            CONFIG_PIN
-#endif
-        ) == LOW;
+        const bool configButtonPressed = digitalRead(CONFIG_PIN) == LOW;
         if (configButtonPressed) {
-            delay(30);
-            if (digitalRead(
-#if defined(ARDUINO_M5STACK_CORE2)
-                    CORE2_BUTTON_A_PIN
-#else
-                    CONFIG_PIN
-#endif
-                ) == LOW) {
+            delay(30);  // Simple debounce for the BOOT button.
+            if (digitalRead(CONFIG_PIN) == LOW) {
                 return true;
             }
         }
         delay(10);
     }
     return false;
+#endif
 }
 
 static void shutdownWifi()
@@ -132,15 +118,16 @@ void setup()
 {
     Serial.begin(115200);
     delay(500);
+    const esp_sleep_wakeup_cause_t wakeupCause = esp_sleep_get_wakeup_cause();
+    const bool isPowerOnOrReset = wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED;
     Serial.println("\n=== RFID Tag Switch - Shelly BLE ===");
+    log_i("[BOOT] Wake cause: %d (%s)",
+          static_cast<int>(wakeupCause),
+          isPowerOnOrReset ? "power-on/reset" : "sleep wake");
 
-    pinMode(
-#if defined(ARDUINO_M5STACK_CORE2)
-        CORE2_BUTTON_A_PIN
-#else
-        CONFIG_PIN
+#if !defined(ARDUINO_M5STACK_CORE2)
+    pinMode(CONFIG_PIN, INPUT_PULLUP);
 #endif
-        , INPUT_PULLUP);
     loadConfig();
 
     const bool forceConfig = shouldEnterConfigMode();
@@ -168,6 +155,10 @@ void setup()
                           RFID_OPERATING_REGION, RFID_TX_POWER)) {
         Serial.println("RFID reader initialization failed; switch state unchanged.");
         shelly.disconnect();
+        if (isPowerOnOrReset) {
+            log_w("[CONFIG] RFID reader unavailable after power-on/reset; starting config portal.");
+            runConfigPortal(true);
+        }
         return;
     }
 

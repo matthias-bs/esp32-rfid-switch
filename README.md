@@ -166,7 +166,7 @@ Relay state retention during sleep depends on whether the selected relay GPIO su
 
 ### M5Stack Core2 controls and LED
 
-On Core2, press **Button A** during the first three seconds after reset to open configuration mode. Other supported boards use BOOT/GPIO 0 instead. The display backlight is disabled by the example.
+In the relay example, press the Core2 **Button A** touchscreen control during the first three seconds after reset to open configuration mode. This is a virtual touch button handled through M5Unified. Other supported boards use BOOT/GPIO 0 instead. The display backlight is disabled by the example.
 
 The built-in power LED is controlled through the Core2 AXP192 power-management chip with `M5.Power.setLed()`. It is off when the relay is off and on when the relay is on. While the web configuration portal is active, it blinks to indicate configuration mode. This LED is not a general-purpose GPIO output.
 
@@ -209,7 +209,7 @@ To reopen configuration after startup, use the board-specific button during the 
 - **M5Stack Core2:** press **Button A**.
 - **Other supported boards:** hold the ESP32 **BOOT** button, which is GPIO 0, low.
 
-The exact button and reset behavior depends on the selected board.
+The standalone Shelly example intentionally remains lightweight and does not include M5Unified. On Core2, it therefore uses reader-disconnect recovery instead of the virtual Button A trigger: after a power-on or reset, disconnect the RFID reader and the failed reader initialization starts the configuration portal. Timer wakes do not start the portal. The exact button and reset behavior depends on the selected board and example.
 
 For Shelly mode, configure either:
 
@@ -229,6 +229,8 @@ For M5Stack Core2, the example uses Button A for configuration, GPIO 32 on Port 
 ### `rfid-switch-shelly`
 
 Use this example when the output is a Shelly device controlled over BLE. It reconnects after each wake, targets Shelly Switch 0, and enters deep sleep between cycles. A connection or RPC failure does not falsely mark the Shelly output as changed.
+
+The standalone Shelly example does not include M5Unified because that dependency causes an IRAM0 linker overflow on the Core2 build. For Core2 recovery, a power-on or reset followed by failed RFID reader initialization starts the web configuration portal. Timer-wake reader failures sleep without starting the portal. On non-Core2 boards, the existing BOOT/GPIO 0 startup trigger remains available.
 
 ### `rfid-switch-core2-gdtouchkeyboard`
 
@@ -275,7 +277,8 @@ Do not use this project as the sole security control for safety-critical access,
 
 - Confirm that the sketch is running and the ESP32 has completed reset.
 - Check that the device is not already configured.
-- On M5Stack Core2, press Button A during the first three seconds after reset. On other supported boards, hold BOOT/GPIO 0 low during that window.
+- In the relay example, press the Core2 virtual Button A during the first three seconds after reset. On other supported boards, hold BOOT/GPIO 0 low during that window.
+- In the standalone Shelly example on Core2, disconnect the RFID reader before power-on or reset. The portal starts after reader initialization fails.
 - Connect to `RFID-Switch-Setup` and browse to `192.168.4.1`.
 - Check serial output and allow for the five-minute portal timeout.
 
