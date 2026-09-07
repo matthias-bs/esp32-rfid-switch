@@ -1,7 +1,3 @@
-#if defined(ESP32) && !defined(CONFIG_ARDUINO_ISR_IRAM)
-#define CONFIG_ARDUINO_ISR_IRAM 0
-#endif
-
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Preferences.h>
