@@ -100,8 +100,8 @@ static void startConfigurationPortal()
 static bool shouldEnterConfigMode()
 {
 #if defined(ARDUINO_M5STACK_CORE2)
-    log_i("Core2 touch Button A is unavailable in the lightweight Shelly example; "
-          "reader disconnect recovery is used instead.");
+    log_i("Core2 touch Button A is unavailable; restart with the RFID reader "
+          "disconnected to enter web config mode.");
     return false;
 #else
     log_i("Press BOOT within %lu ms after startup for web config mode.",

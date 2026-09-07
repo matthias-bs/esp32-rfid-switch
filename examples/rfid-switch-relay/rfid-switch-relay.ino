@@ -190,7 +190,8 @@ static bool setRelay(bool enabled, void *) {
 
 #if defined(ARDUINO_M5STACK_CORE2)
 static bool shouldEnterConfigMode() {
-    log_i("Press Button A within %lu ms after startup for web config mode.",
+    log_i("Press Button A within %lu ms after startup, or restart with the "
+          "RFID reader disconnected, for web config mode.",
           static_cast<unsigned long>(RECONFIG_WINDOW_MS));
 
     uint32_t startMs = millis();
@@ -214,7 +215,8 @@ static bool shouldEnterConfigMode() {
 }
 #else
 static bool shouldEnterConfigMode() {
-    log_i("Press BOOT within %lu ms after startup for web config mode.",
+    log_i("Press BOOT within %lu ms after startup, or restart with the RFID "
+          "reader disconnected, for web config mode.",
           static_cast<unsigned long>(RECONFIG_WINDOW_MS));
 
     uint32_t startMs = millis();
