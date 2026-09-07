@@ -88,7 +88,7 @@ The editable source is [`rfid-switch-runtime-flow.mmd`](rfid-switch-runtime-flow
 ## Hardware
 
 - **Featured target:** [Waveshare ESP32-S3-Relay-1CH](https://www.waveshare.com/esp32-s3-relay-1ch.htm), an ESP32-S3 board with an integrated one-channel relay in a rail-mount housing. See the manufacturer's [ESP32-S3-Relay-1CH Wiki](https://www.waveshare.com/wiki/ESP32-S3-Relay-1CH) for board documentation. In the Arduino IDE, select **ESP32S3 Dev Module** (FQBN `esp32:esp32:esp32s3`).
-- **Featured target:** [M5Stack Core2](https://docs.m5stack.com/en/core/core2), an ESP32-based controller with an AXP192 power-management chip, display, buttons, and M-BUS/Port A expansion. In the Arduino IDE, select the **M5Stack-Core2** board definition (FQBN `esp32:esp32:m5stack_core2`) and install the M5Unified library.
+- **Featured target:** [M5Stack Core2](https://docs.m5stack.com/en/core/core2), an ESP32-based controller with an AXP192- or AXP2101-family power-management chip, display, buttons, and M-BUS/Port A expansion. In the Arduino IDE, select the **M5Stack-Core2** board definition (FQBN `esp32:esp32:m5stack_core2`) and install the M5Unified library.
 - **Optional mounting accessory:** [M5Stack Guide Rail](https://docs.m5stack.com/en/accessory/guide_rail), an M5Base-series expansion base with spring-loaded rail mounting and M3 screw holes. It can be used when building a rail-mounted Core2 assembly.
 - M5Stack UHF RFID reader.
 - One or more compatible UHF RFID tags.
@@ -168,7 +168,7 @@ Relay state retention during sleep depends on whether the selected relay GPIO su
 
 In the relay example, press the Core2 **Button A** touchscreen control during the first three seconds after reset to open configuration mode. This is a virtual touch button handled through M5Unified. Other supported boards use BOOT/GPIO 0 instead. The display backlight is disabled by the example.
 
-The built-in power LED is controlled through the Core2 AXP192 power-management chip with `M5.Power.setLed()`. It is off when the relay is off and on when the relay is on. While the web configuration portal is active, it blinks to indicate configuration mode. This LED is not a general-purpose GPIO output.
+The built-in power LED is controlled through the Core2 power-management chip with M5Unified's `M5.Power.setLed()`. It is off when the relay is off and on when the relay is on, including during deep sleep. While the web configuration portal is active, it blinks to indicate configuration mode. This LED is not a general-purpose GPIO output.
 
 ### Shelly BLE
 
@@ -211,6 +211,8 @@ To reopen configuration after startup, use the board-specific button during the 
 
 The standalone Shelly example intentionally remains lightweight and does not include M5Unified. On Core2, it therefore uses reader-disconnect recovery instead of the virtual Button A trigger: after a power-on or reset, disconnect the RFID reader and the failed reader initialization starts the configuration portal. Timer wakes do not start the portal. The exact button and reset behavior depends on the selected board and example.
 
+On Core2, the standalone Shelly example controls the power-management LED directly over the internal I2C bus. The lightweight helper detects whether the board uses an AXP192 or AXP2101 PMIC and selects the matching LED register. While the web configuration portal is active, the LED blinks. After a successful Shelly status read, it shows the actual Switch 0 state solid on or off. BLE connection, RPC, or status failures produce three blinks and then leave the LED off. This direct implementation keeps M5Unified out of the standalone Shelly build, avoiding its known IRAM0 overflow.
+
 For Shelly mode, configure either:
 
 - a colon-separated six-byte BLE address, or
@@ -224,13 +226,13 @@ When both are configured, the direct BLE address is used first. Shelly pairing o
 
 Use this example when the ESP32 directly controls a relay. It scans at the configured sleep interval, which defaults to five seconds, drives the relay GPIO defined by the example, and uses deep sleep with RTC GPIO hold only when that GPIO supports it on the selected board. Change `RFID_SLEEP_DURATION_SECONDS` in the example to adjust the interval, then recompile and upload the sketch.
 
-For M5Stack Core2, the example uses Button A for configuration, GPIO 32 on Port A for the relay, GPIO 13/14 for the UHF reader, and the built-in power LED as a relay/configuration indicator.
+For M5Stack Core2, the example uses Button A for configuration, GPIO 32 on Port A for the relay, GPIO 13/14 for the UHF reader, and the built-in power LED as a relay/configuration indicator. The LED state is retained during deep sleep.
 
 ### `rfid-switch-shelly`
 
 Use this example when the output is a Shelly device controlled over BLE. It reconnects after each wake, targets Shelly Switch 0, and enters deep sleep between cycles. A connection or RPC failure does not falsely mark the Shelly output as changed.
 
-The standalone Shelly example does not include M5Unified because that dependency causes an IRAM0 linker overflow on the Core2 build. For Core2 recovery, a power-on or reset followed by failed RFID reader initialization starts the web configuration portal. Timer-wake reader failures sleep without starting the portal. On non-Core2 boards, the existing BOOT/GPIO 0 startup trigger remains available.
+The standalone Shelly example does not include M5Unified because that dependency causes an IRAM0 linker overflow on the Core2 build. For Core2 recovery, a power-on or reset followed by failed RFID reader initialization starts the web configuration portal. Timer-wake reader failures sleep without starting the portal. On non-Core2 boards, the existing BOOT/GPIO 0 startup trigger remains available. On Core2, the power-management LED blinks during configuration, shows the confirmed Shelly Switch 0 state when available, and blinks three times for BLE or RPC failure. The lightweight LED helper supports both AXP192 and AXP2101 PMIC variants.
 
 ### `rfid-switch-core2-gdtouchkeyboard`
 

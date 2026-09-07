@@ -8,6 +8,7 @@
 #include <WebServer.h>
 #include <esp_sleep.h>
 #include <ShellyBleRpc.h>
+#include <rfid_switch_core2_led.h>
 #include <rfid_switch_webconfig.h>
 #include <rfid_switch_presence.h>
 
@@ -55,6 +56,51 @@ static RfidSwitchTagConfig tagConfig;
 static ShellyBleRpc shelly;
 static RfidSwitchPresenceController *presenceController = nullptr;
 
+static void indicateShellyUnavailable()
+{
+    rfid_switch_core2_led::blinkFailure();
+}
+
+static bool updatePowerLedFromResponse(const String &response)
+{
+    const int resultPosition = response.indexOf("\"result\"");
+    const int outputPosition = response.indexOf("\"output\"", resultPosition);
+    if (resultPosition < 0 || outputPosition < 0)
+    {
+        return false;
+    }
+
+    const int valuePosition = response.indexOf(':', outputPosition);
+    if (valuePosition < 0)
+    {
+        return false;
+    }
+
+    String outputValue = response.substring(valuePosition + 1);
+    outputValue.trim();
+    if (outputValue.startsWith("true"))
+    {
+        rtcSwitchEnabled = true;
+    }
+    else if (outputValue.startsWith("false"))
+    {
+        rtcSwitchEnabled = false;
+    }
+    else
+    {
+        return false;
+    }
+    rfid_switch_core2_led::set(rtcSwitchEnabled);
+    return true;
+}
+
+static void startConfigurationPortal()
+{
+    rfid_switch_core2_led::startConfigurationBlink();
+    configPortalLoopCallback = rfid_switch_core2_led::blinkConfiguration;
+    runConfigPortal(true);
+}
+
 static bool shouldEnterConfigMode()
 {
 #if defined(ARDUINO_M5STACK_CORE2)
@@ -90,36 +136,65 @@ static void shutdownWifi()
 static bool setShellySwitch(bool enabled, void *)
 {
     if (!shelly.isConnected()) {
+        indicateShellyUnavailable();
         return false;
     }
 
     String response;
-    return shelly.switchSet(SHELLY_SWITCH_ID, enabled, response);
+    if (!shelly.switchSet(SHELLY_SWITCH_ID, enabled, response)) {
+        indicateShellyUnavailable();
+        return false;
+    }
+    if (!shelly.switchGet(SHELLY_SWITCH_ID, response) ||
+        !updatePowerLedFromResponse(response)) {
+        indicateShellyUnavailable();
+        return false;
+    }
+    return true;
 }
 
 static bool connectShelly()
 {
     shelly.setDebug(false);
     if (!shelly.begin()) {
+        indicateShellyUnavailable();
         return false;
     }
 
+    bool connected = false;
     if (configuredBleAddress.length() > 0) {
-        return shelly.connect(configuredBleAddress.c_str());
+        connected = shelly.connect(configuredBleAddress.c_str());
+    }
+    else
+    {
+        const char *nameFilter = configuredNameFilter.length() > 0
+                                     ? configuredNameFilter.c_str()
+                                     : nullptr;
+        connected = shelly.scanAndConnect(SHELLY_SCAN_DURATION_MS, nameFilter);
+    }
+    if (!connected) {
+        indicateShellyUnavailable();
+        return false;
     }
 
-    const char *nameFilter = configuredNameFilter.length() > 0
-                                 ? configuredNameFilter.c_str()
-                                 : nullptr;
-    return shelly.scanAndConnect(SHELLY_SCAN_DURATION_MS, nameFilter);
+    String response;
+    if (!shelly.switchGet(SHELLY_SWITCH_ID, response) ||
+        !updatePowerLedFromResponse(response)) {
+        indicateShellyUnavailable();
+        return false;
+    }
+    return true;
 }
 
 void setup()
 {
     Serial.begin(115200);
     delay(500);
+    rfid_switch_core2_led::begin();
     const esp_sleep_wakeup_cause_t wakeupCause = esp_sleep_get_wakeup_cause();
     const bool isPowerOnOrReset = wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED;
+    const bool restoreState = rtcStateMagic == RTC_STATE_MAGIC;
+    rfid_switch_core2_led::set(restoreState && rtcSwitchEnabled);
     Serial.println("\n=== RFID Tag Switch - Shelly BLE ===");
     log_i("[BOOT] Wake cause: %d (%s)",
           static_cast<int>(wakeupCause),
@@ -135,7 +210,7 @@ void setup()
     const bool noShellyTarget = configuredBleAddress.length() == 0 &&
                                 configuredNameFilter.length() == 0;
     if (forceConfig || noConfig || noShellyTarget) {
-        runConfigPortal(true);
+        startConfigurationPortal();
     }
 
     tagConfig.epc = configuredEpc;
@@ -145,20 +220,19 @@ void setup()
 
     shutdownWifi();
 
-    const bool restoreState = rtcStateMagic == RTC_STATE_MAGIC;
-    if (!connectShelly()) {
-        Serial.println("Shelly BLE connection failed; switch state unchanged.");
-        return;
-    }
-
     if (!rfidReader.begin(&Serial2, RFID_RX_PIN, RFID_TX_PIN,
                           RFID_OPERATING_REGION, RFID_TX_POWER)) {
         Serial.println("RFID reader initialization failed; switch state unchanged.");
-        shelly.disconnect();
         if (isPowerOnOrReset) {
             log_w("[CONFIG] RFID reader unavailable after power-on/reset; starting config portal.");
-            runConfigPortal(true);
+            startConfigurationPortal();
         }
+        return;
+    }
+
+    if (!connectShelly()) {
+        Serial.println("Shelly BLE connection failed; switch state unchanged.");
+        shelly.disconnect();
         return;
     }
 
