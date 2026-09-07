@@ -599,7 +599,7 @@ static bool connectShelly()
     }
 
     String response;
-    const bool requestSucceeded = shelly.switchGet(SHELLY_SWITCH_ID, response);
+    const bool requestSucceeded = shelly.switchGetStatus(SHELLY_SWITCH_ID, response);
     if (!requestSucceeded || !updatePowerLedFromResponse(response))
     {
           log_e("[SHELLY] Switch.GetStatus failed or returned an unexpected response: %s",
