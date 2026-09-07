@@ -53,7 +53,6 @@ static const bool RELAY_PIN_IS_RTC_CAPABLE =
 #else
 static const uint32_t SHELLY_SCAN_DURATION_MS = 5000;
 static const uint8_t SHELLY_SWITCH_ID = 0;
-static const uint8_t SHELLY_LED_UNAVAILABLE = 16;
 #endif
 
 RTC_DATA_ATTR static uint32_t rtcStateMagic;
@@ -511,8 +510,14 @@ static void setShellyPowerLed(bool enabled)
 static void indicateShellyUnavailable()
 {
     rtcShellyStateKnown = false;
-    M5.Power.setLed(SHELLY_LED_UNAVAILABLE);
-    log_w("[SHELLY] Relay state unavailable; power LED dimmed.");
+    for (uint8_t blink = 0; blink < 3; ++blink)
+    {
+        M5.Power.setLed(255);
+        delay(200);
+        M5.Power.setLed(0);
+        delay(200);
+    }
+    log_w("[SHELLY] Relay state unavailable; power LED blinked three times.");
 }
 
 static bool updatePowerLedFromResponse(const String &response)
@@ -640,7 +645,7 @@ void setup()
     }
     else
     {
-        M5.Power.setLed(SHELLY_LED_UNAVAILABLE);
+        M5.Power.setLed(0);
     }
 #endif
     Serial.begin(115200);

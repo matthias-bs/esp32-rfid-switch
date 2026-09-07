@@ -41,7 +41,7 @@ Both variants configure EPC, TID, password, and token. EPC and TID are required 
 
 The Shelly variant additionally accepts either a colon-separated BLE address or a case-sensitive name filter. A direct BLE address takes precedence when both are configured. Settings use the same `shelly-ble` NVS namespace and keys as the original Web Config examples.
 
-In Shelly mode, the Core2 power LED shows the last confirmed Shelly relay state across deep sleep: off means relay off and full brightness means relay on. A dim LED means that the Shelly state is currently unavailable, for example after a BLE connection or RPC failure. The dim unavailable indication is retained until a later wake successfully reads the Shelly state.
+In Shelly mode, the Core2 power LED shows the last confirmed Shelly relay state across deep sleep: off means relay off and full brightness means relay on. A three-blink sequence indicates that the Shelly state is currently unavailable, for example after a BLE connection or RPC failure. The failure indication is shown before sleep; a later wake that successfully reads the Shelly state restores the normal relay-state indication.
 
 ## Dependencies
 
