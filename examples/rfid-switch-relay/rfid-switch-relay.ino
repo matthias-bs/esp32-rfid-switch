@@ -267,7 +267,9 @@ void setup() {
     #if defined(ARDUINO_M5STACK_CORE2)
     M5.begin();
     M5.Display.setBrightness(0);
-    M5.Power.setLed(0);
+    M5.Power.setLed(rtcStateMagic == RTC_STATE_MAGIC && rtcRelayEnabled
+                        ? 255
+                        : 0);
     #endif
     Serial.begin(115200);
     Serial.setDebugOutput(true);
@@ -284,7 +286,7 @@ void setup() {
           RFID_RX_PIN,
           RFID_TX_PIN);
 
-    setRelay(false, nullptr);
+    setRelay(rtcStateMagic == RTC_STATE_MAGIC && rtcRelayEnabled, nullptr);
 #if !defined(ARDUINO_M5STACK_CORE2)
     pinMode(CONFIG_PIN, INPUT_PULLUP);
 #endif
