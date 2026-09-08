@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - board: esp32:esp32:esp32s3
+            skip_pattern: rfid-switch-core2-gdtouchkeyboard
+          - board: esp32:esp32:m5stack_core2
+            skip_pattern: ""
+
+    runs-on: ubuntu-latest
+    name: ${{ matrix.board }}
+
+    steps:
+      - name: Install arduino-cli
+        run: |
+          mkdir -p ~/.local/bin
+          echo "~/.local/bin" >> "$GITHUB_PATH"
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=~/.local/bin sh
+
+      - name: Install ESP32 platform
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      - name: Install libraries
+        run: |
+          mkdir -p "$HOME/Arduino/libraries"
+          git clone --depth 1 https://github.com/matthias-bs/M5Unit-UHF-RFID.git "$HOME/Arduino/libraries/M5Unit-UHF-RFID"
+          git clone --depth 1 https://github.com/matthias-bs/GDTouchKeyboard.git "$HOME/Arduino/libraries/GDTouchKeyboard"
+          arduino-cli lib install M5Unified NimBLE-Arduino@2.5.0 esp32-shelly-ble-rpc@1.1.1
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build examples
+        env:
+          SKIP_PATTERN: ${{ matrix.skip_pattern }}
+        run: |
+          for example in $(find "$GITHUB_WORKSPACE/examples" -name '*.ino' | sort); do
+            if [ -n "$SKIP_PATTERN" ] && [[ "$example" =~ $SKIP_PATTERN ]]; then
+              echo "Skipping ${example##*/} for ${{ matrix.board }}"
+              continue
+            fi
+
+            echo "Building ${example##*/} for ${{ matrix.board }}"
+            arduino-cli compile \
+              --libraries "$(dirname "$GITHUB_WORKSPACE")" \
+              --fqbn "${{ matrix.board }}" \
+              "$example" \
+              --warnings all
+          done
