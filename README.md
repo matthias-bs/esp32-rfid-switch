@@ -4,10 +4,10 @@
 
 ## To Do
 
-[ ] Publish M5Unit-UHF-RFID fork
-[ ] Add RFID tag initialization sketch
-[ ] Review and fix this documentation
-[ ] Add GitHub Action for CI
+- [x] Publish M5Unit-UHF-RFID fork
+- [ ] Add RFID tag initialization sketch
+- [ ] Review and fix this documentation
+- [ ] Add GitHub Action for CI
 
 ## Overview
 
@@ -125,6 +125,9 @@ The library declares these dependencies in [`library.properties`](library.proper
 - [esp32-shelly-ble-rpc](https://github.com/matthias-bs/esp32-shelly-ble-rpc)
 - [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)
 - [GDTouchKeyboard](https://github.com/matthias-bs/GDTouchKeyboard) (required by the Core2 touch example)
+
+> [!CAUTION]
+> Use the `main` branch of [matthias-bs/M5Unit-UHF-RFID](https://github.com/matthias-bs/M5Unit-UHF-RFID); the ogiginal M5Stack repo or other branches are not supported.
 
 You also need an ESP32 Arduino core and a board definition compatible with the selected example.
 
