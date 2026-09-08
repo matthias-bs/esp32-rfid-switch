@@ -127,7 +127,10 @@ The library declares these dependencies in [`library.properties`](library.proper
 - [GDTouchKeyboard](https://github.com/matthias-bs/GDTouchKeyboard) (required by the Core2 touch example)
 
 > [!CAUTION]
-> Use the `main` branch of [matthias-bs/M5Unit-UHF-RFID](https://github.com/matthias-bs/M5Unit-UHF-RFID); the ogiginal M5Stack repo or other branches are not supported.
+> Use the `master` branch of [matthias-bs/M5Unit-UHF-RFID](https://github.com/matthias-bs/M5Unit-UHF-RFID); the original M5Stack repo or other branches are not supported.
+
+> [!CAUTION]
+> Use the `master` branch of [matthias-bs/GDTouchKeyboard](https://github.com/matthias-bs/GDTouchKeyboard); other repo variants or branches are not supported.
 
 You also need an ESP32 Arduino core and a board definition compatible with the selected example.
 
