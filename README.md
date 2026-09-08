@@ -1,5 +1,9 @@
 # ESP32 RFID Switch
 
+[![CI](https://github.com/matthias-bs/esp32-rfid-switch/actions/workflows/CI.yml/badge.svg)](https://github.com/matthias-bs/esp32-rfid-switch/actions/workflows/CI.yml)
+[![GitHub release](https://img.shields.io/github/release/matthias-bs/esp32-rfid-switch?maxAge=3600)](https://github.com/matthias-bs/esp32-rfid-switch/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/matthias-bs/esp32-rfid-switch/blob/main/LICENSE)
+
 **WORK IN PROGRESS**
 
 ## To Do
