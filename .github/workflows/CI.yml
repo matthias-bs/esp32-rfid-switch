@@ -39,7 +39,7 @@ jobs:
           mkdir -p "$HOME/Arduino/libraries"
           git clone --depth 1 https://github.com/matthias-bs/M5Unit-UHF-RFID.git "$HOME/Arduino/libraries/M5Unit-UHF-RFID"
           git clone --depth 1 https://github.com/matthias-bs/GDTouchKeyboard.git "$HOME/Arduino/libraries/GDTouchKeyboard"
-          arduino-cli lib install M5Unified NimBLE-Arduino@2.5.0 esp32-shelly-ble-rpc@1.1.1
+          arduino-cli lib install M5Unified NimBLE-Arduino@2.5.0 esp32-shelly-ble-rpc@1.1.2
 
       - name: Checkout repository
         uses: actions/checkout@v7
