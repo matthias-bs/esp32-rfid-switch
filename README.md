@@ -9,7 +9,7 @@
 ## To Do
 
 - [x] Publish M5Unit-UHF-RFID fork
-- [ ] Add RFID tag initialization sketch
+- [x] Add RFID tag initialization sketch
 - [ ] Review and fix this documentation
 - [x] Add GitHub Action for CI
 - [ ] Add M5Unit-UHF-RFID power saving
@@ -130,6 +130,7 @@ The library declares these dependencies in [`library.properties`](library.proper
 - [esp32-shelly-ble-rpc](https://github.com/matthias-bs/esp32-shelly-ble-rpc)
 - [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)
 - [GDTouchKeyboard](https://github.com/matthias-bs/GDTouchKeyboard) (required by the Core2 touch example)
+- [ArduinoJson](https://arduinojson.org/) (required by the RFID tag writer)
 
 > [!CAUTION]
 > Use the `master` branch of [matthias-bs/M5Unit-UHF-RFID](https://github.com/matthias-bs/M5Unit-UHF-RFID); the original M5Stack repo or other branches are not supported.
@@ -200,9 +201,29 @@ Do not infer a safe mains wiring arrangement from the low-voltage UART wiring ab
 
 The main examples do not write tags. Use the tag-writer sketch at [`m5stack/RFID_Write/RFID_Write.ino`](../m5stack/RFID_Write/RFID_Write.ino) to inspect or provision a tag from the parent project.
 
-The tag writer uses Europe region `3`, TX power `2600`, and writes the default User Memory payload `DE AD BE EF`. Its UART pins are GPIO 16/17 when `ARDUINO_ESP32_DEV` is defined, and GPIO 1/2 otherwise. Review the sketch before compiling it for a different board.
+The tag writer at [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) scans continuously and prints each detected tag's EPC and TID. Press Enter in the Serial Monitor to submit a JSON object. Pretty-printed JSON is supported; the writer detects the closing brace rather than treating each newline as the end of the message.
 
-The writer contains commented compile-time options for access-password support, User Memory locking, and skipping the write operation. Enable these only after understanding the tag's memory layout and access behavior.
+The JSON fields are:
+
+- `epc`: required, even-length hexadecimal string, maximum 124 characters.
+- `tid`: required, even-length hexadecimal string, maximum 40 characters. The value is matched as a case-insensitive prefix, like the runtime examples.
+- `current_access_password`: optional, empty or exactly 8 hexadecimal characters. An absent or empty value means `00000000`.
+- `access_password`: optional new tag password, empty or exactly 8 hexadecimal characters.
+- `secret_token`: optional four-byte User Memory value, empty or exactly 8 hexadecimal characters.
+
+When a new `access_password` is supplied, the writer uses `current_access_password` to write it to the tag's Access Password area in Reserved bank `0x00`, starting at word `2`. It writes `secret_token` to User Memory bank `0x03`, then locks User Memory with lock flags `0x030C82` and verifies the token using the effective password. This assumes the current password supplied in JSON is correct.
+
+Example:
+
+```json
+{
+  "epc": "E2801170200020A4B3C5D6E7",
+  "tid": "E2003412",
+  "current_access_password": "00000000",
+  "access_password": "A1B2C3D4",
+  "secret_token": "11223344"
+}
+```
 
 Record the following values for the configuration portal:
 
@@ -260,7 +281,7 @@ Use this example on an M5Stack Core2 when configuration should be entered locall
 
 ### RFID tag writer
 
-The tag writer is located outside this library repository at [`m5stack/RFID_Write/RFID_Write.ino`](../m5stack/RFID_Write/RFID_Write.ino). It is a provisioning utility, not part of either runtime example.
+Use [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) to identify and initialize tags for the runtime examples. The sketch uses the same reader UART mappings as the switch examples and returns to scanning after every successful or failed JSON operation.
 
 ## Runtime Behavior
 

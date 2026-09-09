@@ -1,0 +1,25 @@
+Scan result: 1
+EPC: e2004700345064260537010d, RSSI: -40 dBm
+TID: E2803821200064260A780537
+Scan result: 1
+EPC: e2004700345064260537010d, RSSI: -40 dBm
+[412035][E][rfid-tag-write.ino:439] printDetectedTags(): Could not select EPC e2004700345064260537010d
+TID: read failed
+Scan result: 0
+Scan result: 2
+EPC: e2004700345064260537010d, RSSI: -40 dBm
+TID: E2803821200064260A780537
+EPC: e20047004e90642606db0110, RSSI: -71 dBm
+[412901][E][rfid-tag-write.ino:447] printDetectedTags(): Could not read TID for EPC e20047004e90642606db0110
+TID: read failed
+Send a JSON object, ending after the closing brace.
+Required: epc, tid. Optional: current_access_password, access_password, secret_token.
+Writing tag EPC e2004700345064260537010d, TID prefix E2803821200064260A780537.
+[416197][I][rfid-tag-write.ino:381] writeConfiguration(): Secret token written
+[416240][I][rfid-tag-write.ino:396] writeConfiguration(): Access password written
+[416314][I][rfid-tag-write.ino:404] writeConfiguration(): User Memory locked
+[416355][I][rfid-tag-write.ino:422] writeConfiguration(): Secret token verified
+Tag initialization completed.
+Scan result: 1
+EPC: e2004700345064260537010d, RSSI: -39 dBm
+TID: E2803821200064260A780537
