@@ -1,13 +1,50 @@
-/*
- * RFID Tag Switch - M5Stack Core2 touch configuration
- *
- * This example uses GDTouchKeyboard instead of the Wi-Fi Web Config portal.
- * Select the output variant at compile time. With no external build define,
- * the Relay variant is selected by default.
- *
- * To build the Shelly variant, define RFID_SWITCH_VARIANT_SHELLY, or change
- * the default selection below.
- */
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// rfid-switch-core2-gdtouchkeyboard.ino
+//
+// Example for RFID Tag Switch - M5Stack Core2 touch configuration
+//
+// Configure the RFID EPC, TID, password, and token with GDTouchKeyboard instead
+// of the Wi-Fi Web Config portal. Select the relay or Shelly BLE output variant
+// at compile time. The relay variant is selected by default.
+// The Shelly BLE variant additionally configures the target with either its
+// address or an exact device-name filter.
+//
+// https://github.com/matthias-bs/esp32-rfid-switch
+//
+//
+// created: 09/2026
+//
+//
+// MIT License
+//
+// Copyright (c) 2026 Matthias Prinke
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// History:
+//
+// 20260909 Initial
+//
+// ToDo:
+// -
+//
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if !defined(RFID_SWITCH_VARIANT_RELAY) && \
     !defined(RFID_SWITCH_VARIANT_SHELLY)
