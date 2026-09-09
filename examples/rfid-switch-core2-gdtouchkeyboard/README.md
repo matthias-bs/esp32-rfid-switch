@@ -45,4 +45,17 @@ In Shelly mode, the Core2 power LED shows the last confirmed Shelly relay state 
 
 ## Dependencies
 
-Install the ESP32 Arduino core, `M5Unified`, `GDTouchKeyboard`, `M5Unit-UHF-RFID`, and `esp32-shelly-ble-rpc`. `NimBLE-Arduino` is required by the Shelly BLE dependency.
+Install the ESP32 Arduino core and the libraries below:
+
+| Dependency | Required source | Used for |
+| --- | --- | --- |
+| `M5Unified` | [M5Stack/M5Unified](https://github.com/m5stack/M5Unified) | Core2 display, buttons, touch, and power LED |
+| `M5Unit-UHF-RFID` | [`matthias-bs/M5Unit-UHF-RFID`](https://github.com/matthias-bs/M5Unit-UHF-RFID), `master` branch | RFID reader |
+| `GDTouchKeyboard` | [`matthias-bs/GDTouchKeyboard`](https://github.com/matthias-bs/GDTouchKeyboard), `master` branch | On-device configuration keyboard |
+| `esp32-shelly-ble-rpc` | [matthias-bs/esp32-shelly-ble-rpc](https://github.com/matthias-bs/esp32-shelly-ble-rpc) | Shelly BLE variant |
+| `NimBLE-Arduino` | [h2zero/NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) | BLE support required by `esp32-shelly-ble-rpc` |
+| `ArduinoJson` | [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) | Configuration and RPC data |
+
+The `M5Unit-UHF-RFID` and `GDTouchKeyboard` entries must come from the forks and
+branches shown above. The original M5Stack RFID repository, other repository
+variants, and other branches are not supported.
