@@ -28,6 +28,8 @@ The relay output is used only by the relay build. The Shelly build requires the 
 
 On first boot, or when Button A is pressed during the first three seconds after reset, the configuration overview appears.
 
+![Core2 touchscreen configuration overview](../../docs/touchscreen-config.png)
+
 - Button A selects the previous field.
 - Button C selects the next field.
 - Button B edits the selected field.
