@@ -11,7 +11,7 @@
 - [x] Publish M5Unit-UHF-RFID fork
 - [ ] Add RFID tag initialization sketch
 - [ ] Review and fix this documentation
-- [ ] Add GitHub Action for CI
+- [x] Add GitHub Action for CI
 - [ ] Add M5Unit-UHF-RFID power saving
 
 ## Overview
