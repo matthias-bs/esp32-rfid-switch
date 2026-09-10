@@ -62,6 +62,7 @@
 // Standard Sizes: Most modern chips use a 64-bit or 96-bit factory-locked unique ID.
 
 Preferences prefs;
+static const char CONFIG_NVS_NAMESPACE[] = "rfid-switch";
 
 bool hasStoredConfig = false;
 String configuredNameFilter;
@@ -86,7 +87,7 @@ static const size_t MAX_BLE_ADDRESS_LEN = 17;
 
 void loadConfig()
 {
-    prefs.begin("shelly-ble", true);
+    prefs.begin(CONFIG_NVS_NAMESPACE, true);
     hasStoredConfig = prefs.getBool("configured", false);
     configuredBleAddress = prefs.getString("ble_address", "");
     configuredNameFilter = prefs.getString("name_filter", "");
@@ -111,7 +112,7 @@ void saveConfig(const String &bleAddress,
                 const String &password,
                 const String &token)
 {
-    prefs.begin("shelly-ble", false);
+    prefs.begin(CONFIG_NVS_NAMESPACE, false);
     prefs.putBool("configured", true);
     prefs.putString("ble_address", bleAddress);
     prefs.putString("name_filter", nameFilter);
