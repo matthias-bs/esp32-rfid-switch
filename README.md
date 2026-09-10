@@ -127,9 +127,10 @@ The ESP32 uses 3.3 V logic. Check voltage levels before connecting any signal. T
 The library declares these dependencies in [`library.properties`](library.properties):
 
 - [M5Unit-UHF-RFID](https://github.com/matthias-bs/M5Unit-UHF-RFID) (fork)
+- [M5Unified](https://github.com/m5stack/M5Unified) (required by the Core2 touch example)
 - [esp32-shelly-ble-rpc](https://github.com/matthias-bs/esp32-shelly-ble-rpc)
 - [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)
-- [GDTouchKeyboard](https://github.com/matthias-bs/GDTouchKeyboard) (required by the Core2 touch example)
+- [GDTouchKeyboard](https://github.com/matthias-bs/GDTouchKeyboard) (fork; required by the Core2 touch example)
 - [ArduinoJson](https://arduinojson.org/) (required by the RFID tag writer)
 
 > [!CAUTION]
@@ -277,7 +278,37 @@ The standalone Shelly example does not include M5Unified because that dependency
 
 ### `rfid-switch-core2-gdtouchkeyboard`
 
-Use this example on an M5Stack Core2 when configuration should be entered locally on the touchscreen instead of through a Wi-Fi access point. The sketch contains both the relay and Shelly BLE output paths, selected at compile time with `RFID_SWITCH_VARIANT_RELAY` or `RFID_SWITCH_VARIANT_SHELLY`. The relay variant is the default; see the example README for the Shelly compiler flag and Core2 controls.
+Use this example on an M5Stack Core2 when configuration should be entered locally on the touchscreen instead of through a Wi-Fi access point. It does not start the Web Config portal. The sketch contains both the relay and Shelly BLE output paths, selected at compile time with `RFID_SWITCH_VARIANT_RELAY` or `RFID_SWITCH_VARIANT_SHELLY`. The relay variant is selected by default.
+
+To build the Shelly variant, define `RFID_SWITCH_VARIANT_SHELLY`. To build the relay variant explicitly, define `RFID_SWITCH_VARIANT_RELAY`:
+
+```text
+arduino-cli compile --fqbn esp32:esp32:m5stack_core2 \
+  --build-property build.extra_flags=-DRFID_SWITCH_VARIANT_RELAY \
+  examples/rfid-switch-core2-gdtouchkeyboard
+```
+
+Define exactly one variant. Defining both flags is a compile-time error.
+
+For Core2 RFID wiring, see [RFID reader](#rfid-reader); connect the relay module to Port A. The relay driver is controlled by GPIO 32. The example requires the Core2 display, touchscreen, buttons, and power LED, so it uses `M5Unified`.
+
+On first boot, or when Button A is pressed during the first three seconds after reset, the touchscreen configuration overview appears:
+
+![Core2 touchscreen configuration overview](docs/touchscreen-config.png)
+
+- Button A selects the previous field.
+- Button C selects the next field.
+- Button B edits the selected field.
+- Touch `Prev`, `Edit`, or `Next` in the overview to perform that action.
+- Navigate to `Save` and press Button B or touch `Edit` to save the settings and start the RFID runtime.
+
+The overview status `Ready` means that the current values pass validation. It does not save the settings or indicate that the RFID runtime has started. EPC and TID are required even-length hexadecimal values. Password and token are optional eight-character hexadecimal values.
+
+The keyboard uses Button A to delete, Button B to accept, and Button C to change keyboard mode. The display backlight is on while configuring and is switched off when configuration closes.
+
+Both variants configure EPC, TID, password, and token. The Shelly variant additionally accepts either a colon-separated BLE address or a case-sensitive name filter. A direct BLE address takes precedence when both are configured. These settings use the same `shelly-ble` NVS namespace and keys as the other examples.
+
+In Shelly mode, the Core2 power LED shows the last confirmed Shelly relay state across deep sleep: off means relay off and full brightness means relay on. A three-blink sequence indicates that the Shelly state is currently unavailable, for example after a BLE connection or RPC failure. A later wake that successfully reads the Shelly state restores the normal relay-state indication.
 
 ### RFID tag writer
 
