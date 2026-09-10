@@ -32,7 +32,7 @@ The project is intended for periodic, low-power operation. Each wake performs an
 - [Dependencies](#dependencies)
 - [Installation](#installation)
 - [Wiring](#wiring)
-- [Tag Preparation](#tag-preparation)
+- [Tag Preparation and Writing](#tag-preparation-and-writing)
 - [Configuration](#configuration)
 - [Examples](#examples)
 - [Runtime Behavior](#runtime-behavior)
@@ -198,11 +198,11 @@ The Shelly example communicates with the configured Shelly device over BLE and c
 
 Do not infer a safe mains wiring arrangement from the low-voltage UART wiring above. Follow the Shelly model's documentation and the safety requirements in [Electrical safety](#electrical-safety).
 
-## Tag Preparation
+## Tag Preparation and Writing
 
-The main examples do not write tags. Use the tag-writer sketch at [`m5stack/RFID_Write/RFID_Write.ino`](../m5stack/RFID_Write/RFID_Write.ino) to inspect or provision a tag from the parent project.
+The repository provides [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) to inspect and provision tags. It scans continuously and prints each detected tag's EPC and TID. Press Enter in the Serial Monitor to submit a JSON object. Pretty-printed JSON is supported; the writer detects the closing brace rather than treating each newline as the end of the message.
 
-The tag writer at [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) scans continuously and prints each detected tag's EPC and TID. Press Enter in the Serial Monitor to submit a JSON object. Pretty-printed JSON is supported; the writer detects the closing brace rather than treating each newline as the end of the message.
+Use the provided [example tag configuration](extras/rfid_tag_config.json) as a template for the JSON input. See the [example tag-writer log](extras/rfid_tag_write.log) for a sample run.
 
 The JSON fields are:
 
@@ -237,30 +237,35 @@ EPC and TID are both required for runtime validation, even though the current po
 
 ## Configuration
 
-On first boot, or when configuration is requested, the ESP32 starts an access point:
+The `rfid-switch-relay` and `rfid-switch-shelly` examples use a Wi-Fi configuration portal. On first boot, or when configuration is requested in either of these examples, the ESP32 starts an access point:
 
 - SSID: `RFID-Switch-Setup`
 - Password: `12345678`
 - Portal: `http://192.168.4.1/`
 - Timeout: 300 seconds
 
-Connect to the access point, open the portal, and enter the RFID fields described in [Tag Preparation](#tag-preparation). The settings are stored in the NVS namespace `shelly-ble` under the fields `configured`, `ble_address`, `name_filter`, `epc`, `tid`, `password`, and `token`.
+For these two examples, connect to the access point, open the portal, and enter the RFID fields described in [Tag Preparation and Writing](#tag-preparation-and-writing). The shared configuration is stored in the NVS namespace `rfid-switch` under the fields `configured`, `epc`, `tid`, `password`, `token`, `ble_address`, and `name_filter`.
 
-To reopen configuration after startup, use the board-specific button during the first three seconds after reset:
+Configuration entry and re-entry are supported as follows. The startup window is the first three seconds after power-on or reset. 'Reader-disconnect discovery' means starting with the RFID reader disconnected; after a power-on or reset, failed reader initialization starts the configuration re-entry. Pressing the dedicated button during the startup window triggers the configuration re-entry. BOOT/GPIO 0 is the default, which can be changed with the define `CONFIG_PIN`.
 
-- **M5Stack Core2:** press **Button A**.
-- **Other supported boards:** hold the ESP32 **BOOT** button, which is GPIO 0, low.
+| Example | Board | Button | Reader-disconnect discovery | Config mode |
+| --- | --- | --- | --- | --- |
+| `rfid-switch-relay` | Core2 | Press Button A | Yes | Power LED blinking and info display |
+| `rfid-switch-relay` | Other | Hold BOOT/GPIO 0 low | Yes | **--** |
+| `rfid-switch-shelly` | Core2 | **Not supported** | Yes | Power LED blinking |
+| `rfid-switch-shelly` | Other | Hold BOOT/GPIO 0 low | Yes | **--** |
+| `rfid-switch-core2-gdtouchkeyboard` | Core2 | Press Button A | No | Config menu active |
 
-The standalone Shelly example intentionally remains lightweight and does not include M5Unified. On Core2, it therefore uses reader-disconnect recovery instead of the virtual Button A trigger: after a power-on or reset, disconnect the RFID reader and the failed reader initialization starts the configuration portal. Timer wakes do not start the portal. The exact button and reset behavior depends on the selected board and example.
+For the relay and Shelly examples, a failed RFID reader initialization after power-on or reset starts the Web Config portal. Reader failures after a timer wake return to sleep without starting the portal.
 
-On Core2, the standalone Shelly example controls the power-management LED directly over the internal I2C bus. The lightweight helper detects whether the board uses an AXP192 or AXP2101 PMIC and selects the matching LED register. While the web configuration portal is active, the LED blinks. After a successful Shelly status read, it shows the actual Switch 0 state solid on or off. BLE connection, RPC, or status failures produce three blinks and then leave the LED off. This direct implementation keeps M5Unified out of the standalone Shelly build, avoiding its known IRAM0 overflow.
+For all runtime switch examples, enter the RFID fields described in [Tag Preparation and Writing](#tag-preparation-and-writing). The Web Config examples enter these fields through the portal, while the Core2 touch-keyboard example enters them through its local touchscreen configuration. Timer wakes do not start the portal.
 
 For Shelly mode, configure either:
 
 - a colon-separated six-byte BLE address, or
 - an exact, case-sensitive device name filter of up to 40 characters.
 
-When both are configured, the direct BLE address is used first. Shelly pairing or bonding is not provided as a documented workflow by this project.
+When both are configured, the direct BLE address is used first.
 
 ## Examples
 
@@ -274,7 +279,11 @@ For M5Stack Core2, the example uses Button A for configuration, GPIO 32 on Port 
 
 Use this example when the output is a Shelly device controlled over BLE. It reconnects after each wake, targets Shelly Switch 0, and enters deep sleep between cycles. A connection or RPC failure does not falsely mark the Shelly output as changed.
 
-The standalone Shelly example does not include M5Unified because that dependency causes an IRAM0 linker overflow on the Core2 build. For Core2 recovery, a power-on or reset followed by failed RFID reader initialization starts the web configuration portal. Timer-wake reader failures sleep without starting the portal. On non-Core2 boards, the existing BOOT/GPIO 0 startup trigger remains available. On Core2, the power-management LED blinks during configuration, shows the confirmed Shelly Switch 0 state when available, and blinks three times for BLE or RPC failure. The lightweight LED helper supports both AXP192 and AXP2101 PMIC variants.
+On non-Core2 boards, the existing BOOT/GPIO 0 startup trigger remains available. On Core2, the power-management LED blinks during configuration, shows the confirmed Shelly Switch 0 state when available, and blinks three times for BLE or RPC failure.
+
+#### Core2 LED behavior and implementation
+
+The Shelly example controls the Core2 power-management LED directly over the internal I2C bus. A lightweight helper detects whether the board uses an AXP192 or AXP2101 PMIC and selects the matching LED register. The implementation keeps M5Unified out of the standalone Shelly build, avoiding its known IRAM0 overflow.
 
 ### `rfid-switch-core2-gdtouchkeyboard`
 
@@ -306,13 +315,9 @@ The overview status `Ready` means that the current values pass validation. It do
 
 The keyboard uses Button A to delete, Button B to accept, and Button C to change keyboard mode. The display backlight is on while configuring and is switched off when configuration closes.
 
-Both variants configure EPC, TID, password, and token. The Shelly variant additionally accepts either a colon-separated BLE address or a case-sensitive name filter. A direct BLE address takes precedence when both are configured. These settings use the same `shelly-ble` NVS namespace and keys as the other examples.
+Both variants configure EPC, TID, password, and token. The Shelly variant additionally accepts either a colon-separated BLE address or a case-sensitive name filter. A direct BLE address takes precedence when both are configured. These settings use the shared `rfid-switch` NVS namespace and keys as the other examples.
 
 In Shelly mode, the Core2 power LED shows the last confirmed Shelly relay state across deep sleep: off means relay off and full brightness means relay on. A three-blink sequence indicates that the Shelly state is currently unavailable, for example after a BLE connection or RPC failure. A later wake that successfully reads the Shelly state restores the normal relay-state indication.
-
-### RFID tag writer
-
-Use [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) to identify and initialize tags for the runtime examples. The sketch uses the same reader UART mappings as the switch examples and returns to scanning after every successful or failed JSON operation.
 
 ## Runtime Behavior
 
