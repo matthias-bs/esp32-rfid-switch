@@ -211,19 +211,19 @@ Do not infer a safe mains wiring arrangement from the low-voltage UART wiring ab
 
 ## Tag Preparation and Writing
 
-The repository provides [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) to inspect and provision tags. It scans continuously and prints each detected tag's EPC and TID. Press Enter in the Serial Monitor to submit a JSON object. Pretty-printed JSON is supported; the writer detects the closing brace rather than treating each newline as the end of the message.
+The repository provides [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) to inspect tags and initialize their optional access password and User Memory token. It scans continuously and prints each detected tag's EPC and TID. The supplied EPC and TID identify the existing tag; they are not written by this example. Press Enter in the Serial Monitor to submit a JSON object. Pretty-printed JSON is supported; the writer detects the closing brace rather than treating each newline as the end of the message.
 
 Use the provided [example tag configuration](extras/rfid_tag_config.json) as a template for the JSON input. See the [example tag-writer log](extras/rfid_tag_write.log) for a sample run.
 
 The JSON fields are:
 
-- `epc`: required, even-length hexadecimal string, maximum 124 characters.
-- `tid`: required, even-length hexadecimal string, maximum 40 characters. The value is matched as a case-insensitive prefix, like the runtime examples.
+- `epc`: required, even-length hexadecimal string, maximum 124 characters. It identifies the existing tag and is not written.
+- `tid`: required, even-length hexadecimal string, maximum 40 characters. It identifies the existing tag as a case-insensitive prefix and is not written.
 - `current_access_password`: optional, empty or exactly 8 hexadecimal characters. An absent or empty value means `00000000`.
 - `access_password`: optional new tag password, empty or exactly 8 hexadecimal characters.
 - `secret_token`: optional four-byte User Memory value, empty or exactly 8 hexadecimal characters.
 
-When a new `access_password` is supplied, the writer uses `current_access_password` to write it to the tag's Access Password area in Reserved bank `0x00`, starting at word `2`. It writes `secret_token` to User Memory bank `0x03`, then locks User Memory with lock flags `0x030C82` and verifies the token using the effective password. This assumes the current password supplied in JSON is correct.
+When a new `access_password` is supplied, the writer uses `current_access_password` to write it to the tag's Access Password area in Reserved bank `0x00`, starting at word `2`. When `secret_token` is supplied, it is written to User Memory bank `0x03`, User Memory is locked with lock flags `0x030C82`, and the token is verified using the effective password. User Memory is not locked when no token is supplied. This assumes the current password supplied in JSON is correct.
 
 Example:
 
