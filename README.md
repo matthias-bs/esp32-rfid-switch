@@ -211,7 +211,7 @@ Do not infer a safe mains wiring arrangement from the low-voltage UART wiring ab
 
 ## Tag Preparation and Writing
 
-The repository provides [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) to inspect tags and initialize their optional access password and User Memory token. It scans continuously and prints each detected tag's EPC and TID. The supplied EPC and TID identify the existing tag; they are not written by this example. Press Enter in the Serial Monitor to submit a JSON object. Pretty-printed JSON is supported; the writer detects the closing brace rather than treating each newline as the end of the message.
+The repository provides [`examples/rfid-tag-write/rfid-tag-write.ino`](examples/rfid-tag-write/rfid-tag-write.ino) to inspect tags and initialize their optional access password and User Memory token. It scans continuously and prints each detected tag's EPC and TID. The supplied EPC and TID identify the existing tag; they are not written by this example. Press Enter on an empty line in the Serial Monitor to start a write request. When prompted, send a JSON object; pretty-printed JSON is supported, and the writer detects the closing brace rather than treating each newline as the end of the message.
 
 Use the provided [example tag configuration](extras/rfid_tag_config.json) as a template for the JSON input. See the [example tag-writer log](extras/rfid_tag_write.log) for a sample run.
 
@@ -394,7 +394,7 @@ The GPIO used for the relay must support RTC GPIO hold on the selected board for
 
 ## Development and Testing
 
-The repository currently contains the Arduino library and examples but no automated test suite, board-specific FQBN, or project build configuration. Build each example in an ESP32 Arduino environment with the declared dependencies installed.
+The repository includes a GitHub Actions [CI build matrix](.github/workflows/CI.yml) that compiles the examples for ESP32-S3 and M5Stack Core2. It has no automated runtime or hardware test suite. For local builds, use an ESP32 Arduino environment with the declared dependencies installed.
 
 When changing validation, sleep, or output behavior, test both examples on the intended hardware. In particular, verify relay behavior on the actual board because RTC GPIO support is board-dependent.
 
