@@ -294,7 +294,7 @@ On non-Core2 boards, the existing BOOT/GPIO 0 startup trigger remains available.
 
 #### Core2 LED behavior and implementation
 
-The Shelly example controls the Core2 power-management LED directly over the internal I2C bus. A lightweight helper detects whether the board uses an AXP192 or AXP2101 PMIC and selects the matching LED register. The implementation keeps M5Unified out of the standalone Shelly build, avoiding its known IRAM0 overflow.
+The Shelly example controls the Core2 power-management LED directly over the internal I2C bus. A lightweight helper detects whether the board uses an AXP192 or AXP2101 PMIC and selects the matching LED register. The implementation keeps M5Unified out of the standalone Shelly build, avoiding its known [IRAM0 overflow issue](docs/IRAM0_SEGMENT_OVERFLOW.md).
 
 ### `rfid-switch-core2-gdtouchkeyboard`
 
