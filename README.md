@@ -360,7 +360,7 @@ Do not use this project as the sole security control for safety-critical access,
 
 - Confirm that the `rfid-switch-core2-gdtouchkeyboard` example is running on an M5Stack Core2.
 - Press Button A during the first three seconds after reset to force configuration.
-- Use the overview controls to edit fields, then hold Button B to finish. EPC and TID must be valid even-length hexadecimal values.
+- Use the overview controls to edit fields, then press and release Button B to finish. EPC and TID must be valid even-length hexadecimal values.
 - Recompile after changing the relay/Shelly compile-time variant.
 
 ### The configuration portal does not appear
