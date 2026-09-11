@@ -47,18 +47,18 @@ The project is intended for periodic, low-power operation. Each wake performs an
 - Optional validation of a four-byte token stored in RFID User Memory.
 - Configuration stored in ESP32 non-volatile storage. The relay and standalone Shelly examples use a Wi-Fi configuration portal; the Core2 touch example uses local touchscreen configuration.
 - Local relay output or Shelly BLE output.
-- Periodic scanning with a compile-time presence-removal threshold of three missed scans.
+- Periodic scanning with a compile-time presence-removal threshold (number of missed scans).
 - Low-power sleep between scans.
 
 ## How It Works
 
-On each scan, the reader looks for the configured EPC. If the EPC matches, the reader selects the tag, reads its TID from memory bank `0x02`, and checks the configured TID as a case-insensitive prefix. Both EPC and TID must be configured and must match for the tag to be valid.
+On each scan, the reader looks for the configured EPC. If the EPC matches, the reader selects the tag, reads its TID from memory bank `0x02`, and checks the configured TID as a prefix. Both EPC and TID must be configured and must match for the tag to be valid.
 
 If a token is configured, the reader also reads User Memory bank `0x03` using the configured 32-bit access password. The token must contain exactly four bytes and must match the configured eight-character hexadecimal value.
 
 A valid scan resets the missed-scan counter and enables the output. An invalid or absent scan increments the counter. The output turns off after the configured number of consecutive missed scans.
 
-The relay example wakes at the configured sleep interval, which defaults to five seconds. The sleep mode depends on whether the relay's configured GPIO is RTC-capable. An RTC-capable GPIO is connected to the ESP32 RTC GPIO subsystem and can retain its output level through deep sleep using GPIO hold; otherwise the example uses light sleep. Shelly mode uses deep sleep on every cycle and reconnects to the Shelly device after waking.
+The relay example wakes at the configured sleep interval, which defaults to five seconds (short interval to simplify testing; increase for actual application). The sleep mode depends on whether the relay's configured GPIO is RTC-capable. An RTC-capable GPIO is connected to the ESP32 RTC GPIO subsystem and can retain its output level through deep sleep using GPIO hold; otherwise the example uses light sleep. Shelly mode uses deep sleep on every cycle and reconnects to the Shelly device after waking.
 
 The following flow describes the runtime behavior of both examples. The relay and Shelly branches differ in how they update the output and enter sleep.
 
