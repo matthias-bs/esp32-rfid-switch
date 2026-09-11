@@ -71,7 +71,8 @@ static const uint8_t RFID_REGION = 3;
 static const uint16_t RFID_TX_POWER = 2600;
 static const uint32_t RFID_LOCK_FLAGS = 0x030C82;
 static const size_t MAX_EPC_HEX_LENGTH = 124;
-static const size_t MAX_TID_HEX_LENGTH = 40;
+static const size_t MAX_TID_BYTES = 20;
+static const size_t MAX_TID_HEX_LENGTH = MAX_TID_BYTES * 2;
 static const size_t ACCESS_PASSWORD_HEX_LENGTH = 8;
 static const size_t SECRET_TOKEN_HEX_LENGTH = 8;
 static const size_t MAX_JSON_LENGTH = 1024;
@@ -103,6 +104,27 @@ static String bufferToHexString(const uint8_t *data, size_t size)
   }
   result.toUpperCase();
   return result;
+}
+
+static bool readTid(String &tid)
+{
+  uint8_t tidBuffer[MAX_TID_BYTES] = {0};
+  size_t tidLength = 0;
+  for (; tidLength < sizeof(tidBuffer); tidLength += 2)
+  {
+    if (!uhf.readCard(tidBuffer + tidLength, 2, RFID_BANK_TID,
+                      tidLength / 2, 0))
+    {
+      break;
+    }
+  }
+  if (tidLength == 0)
+  {
+    return false;
+  }
+
+  tid = bufferToHexString(tidBuffer, tidLength);
+  return true;
 }
 
 static int hexValue(char value)
@@ -363,13 +385,12 @@ static bool findConfiguredTag(const TagConfiguration &configuration)
       continue;
     }
 
-    uint8_t tidBuffer[12] = {0};
-    if (!uhf.readCard(tidBuffer, sizeof(tidBuffer), RFID_BANK_TID, 0, 0))
+    String tid;
+    if (!readTid(tid))
     {
       log_e("Could not read configured tag TID");
       continue;
     }
-    const String tid = bufferToHexString(tidBuffer, sizeof(tidBuffer));
     if (!isTidPrefix(tid, configuration.tid))
     {
       log_i("Configured EPC found, but TID does not match");
@@ -490,14 +511,13 @@ static void printDetectedTags()
       continue;
     }
 
-    uint8_t tidBuffer[12] = {0};
-    if (!uhf.readCard(tidBuffer, sizeof(tidBuffer), RFID_BANK_TID, 0, 0))
+    String tid;
+    if (!readTid(tid))
     {
       log_e("Could not read TID for EPC %s", epc.c_str());
       Serial.printf("TID: read failed\r\n");
       continue;
     }
-    const String tid = bufferToHexString(tidBuffer, sizeof(tidBuffer));
     Serial.printf("TID: %s\r\n", tid.c_str());
   }
 }
