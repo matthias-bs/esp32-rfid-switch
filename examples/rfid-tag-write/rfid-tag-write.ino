@@ -183,7 +183,8 @@ static bool hexToWord(const String &value, uint32_t &word)
 
 static bool isTidPrefix(const String &tid, const String &prefix)
 {
-  return prefix.length() <= tid.length() && tid.startsWith(prefix);
+  return prefix.length() <= tid.length() &&
+         tid.substring(0, prefix.length()).equalsIgnoreCase(prefix);
 }
 
 static bool readJsonString(JsonDocument &document, const char *name, String &value,
@@ -442,15 +443,15 @@ static bool writeConfiguration(const TagConfiguration &configuration)
     log_i("Access password written");
   }
 
-  if (!uhf.lockCard(RFID_LOCK_FLAGS, effectivePassword))
-  {
-    log_e("Locking User Memory failed");
-    return false;
-  }
-  log_i("User Memory locked");
-
   if (configuration.secretToken.length() > 0)
   {
+    if (!uhf.lockCard(RFID_LOCK_FLAGS, effectivePassword))
+    {
+      log_e("Locking User Memory failed");
+      return false;
+    }
+    log_i("User Memory locked");
+
     uint8_t expectedToken[4] = {0};
     uint8_t actualToken[4] = {0};
     if (!hexToBytes(configuration.secretToken, expectedToken, sizeof(expectedToken)) ||
