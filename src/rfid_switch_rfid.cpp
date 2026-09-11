@@ -61,12 +61,20 @@ bool RfidSwitchReader::hasValidTag(const RfidSwitchTagConfig &config)
 bool RfidSwitchReader::readTid(String &tid)
 {
     memset(tidBuffer, 0, sizeof(tidBuffer));
-    if (!reader.readCard(tidBuffer, sizeof(tidBuffer), RFID_SWITCH_BANK_TID, 0, 0)) {
+    size_t tidLength = 0;
+    for (; tidLength < sizeof(tidBuffer); tidLength += 2) {
+        if (!reader.readCard(tidBuffer + tidLength, 2, RFID_SWITCH_BANK_TID,
+                             tidLength / 2, 0)) {
+            break;
+        }
+    }
+    if (tidLength == 0) {
         return false;
     }
 
-    tid.reserve(sizeof(tidBuffer) * 2);
-    for (uint8_t value : tidBuffer) {
+    tid.reserve(tidLength * 2);
+    for (size_t index = 0; index < tidLength; ++index) {
+        const uint8_t value = tidBuffer[index];
         if (value < 0x10) {
             tid += '0';
         }

@@ -5,6 +5,7 @@
 
 static const uint8_t RFID_SWITCH_BANK_TID = 0x02;
 static const uint8_t RFID_SWITCH_BANK_USER = 0x03;
+static const size_t RFID_SWITCH_MAX_TID_BYTES = 20;
 
 struct RfidSwitchTagConfig {
     String epc;
@@ -28,6 +29,6 @@ private:
     static uint32_t parsePassword(const String &value);
 
     Unit_UHF_RFID reader;
-    uint8_t tidBuffer[12] = {0};
+    uint8_t tidBuffer[RFID_SWITCH_MAX_TID_BYTES] = {0};
     uint8_t tokenBuffer[4] = {0};
 };
