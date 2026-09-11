@@ -251,9 +251,11 @@ EPC and TID are both required for runtime validation, even though the current po
 The `rfid-switch-relay` and `rfid-switch-shelly` examples use a Wi-Fi configuration portal. On first boot, or when configuration is requested in either of these examples, the ESP32 starts an access point:
 
 - SSID: `RFID-Switch-Setup`
-- Password: `12345678`
+- Password: `12345678` (compile-time constant)
 - Portal: `http://192.168.4.1/`
 - Timeout: 300 seconds
+
+![Web Config portal](docs/webconfig.png)
 
 For these two examples, connect to the access point, open the portal, and enter the RFID fields described in [Tag Preparation and Writing](#tag-preparation-and-writing). The shared configuration is stored in the NVS namespace `rfid-switch` under the fields `configured`, `epc`, `tid`, `password`, `token`, `ble_address`, and `name_filter`.
 
