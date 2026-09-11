@@ -3,7 +3,7 @@ title: ESP32 RFID Switch runtime flow
 ---
 flowchart TD
     start([Boot or wake]) --> configured{Configured?}
-    configured -- No --> portal[Open setup portal]
+    configured -- No --> portal[Open configuration portal/menu]
     portal --> sleep
     configured -- Yes --> scan[Scan for RFID tag]
 
