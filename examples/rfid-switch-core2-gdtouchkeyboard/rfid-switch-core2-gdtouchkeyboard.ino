@@ -475,11 +475,7 @@ static void runTouchConfiguration()
 
         const String newValue = readConfigurationField(configuration[selectedField]);
         *configuration[selectedField].value = newValue;
-        if (validateFinalField(configuration[selectedField]))
-        {
-            saveTouchConfiguration();
-        }
-        else
+        if (!validateFinalField(configuration[selectedField]))
         {
             drawConfigurationOverview(selectedField, "Invalid value; edit again");
             delay(1200);
