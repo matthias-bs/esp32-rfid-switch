@@ -47,7 +47,7 @@ The project is intended for periodic, low-power operation. Each wake performs an
 - Optional validation of a four-byte token stored in RFID User Memory.
 - Configuration stored in ESP32 non-volatile storage. The relay and standalone Shelly examples use a Wi-Fi configuration portal; the Core2 touch example uses local touchscreen configuration.
 - Local relay output or Shelly BLE output.
-- Periodic scanning with a configurable presence-removal threshold; the examples default to three missed scans.
+- Periodic scanning with a compile-time presence-removal threshold of three missed scans.
 - Low-power sleep between scans.
 
 ## How It Works
@@ -56,7 +56,7 @@ On each scan, the reader looks for the configured EPC. If the EPC matches, the r
 
 If a token is configured, the reader also reads User Memory bank `0x03` using the configured 32-bit access password. The token must contain exactly four bytes and must match the configured eight-character hexadecimal value.
 
-A valid scan resets the missed-scan counter and enables the output. An invalid or absent scan increments the counter. The output turns off after the configured number of consecutive missed scans; the examples use three.
+A valid scan resets the missed-scan counter and enables the output. An invalid or absent scan increments the counter. The output turns off after the configured number of consecutive missed scans.
 
 The relay example wakes at the configured sleep interval, which defaults to five seconds. The sleep mode depends on whether the relay's configured GPIO is RTC-capable. An RTC-capable GPIO is connected to the ESP32 RTC GPIO subsystem and can retain its output level through deep sleep using GPIO hold; otherwise the example uses light sleep. Shelly mode uses deep sleep on every cycle and reconnects to the Shelly device after waking.
 
@@ -332,7 +332,7 @@ In Shelly mode, the Core2 power LED shows the last confirmed Shelly relay state 
 
 ## Runtime Behavior
 
-The presence controller is called once per wake by both examples. The examples use a removal threshold of three missed scans:
+The presence controller is called once per wake by both examples. The examples use their configured removal threshold:
 
 | Condition | Result |
 | --- | --- |
