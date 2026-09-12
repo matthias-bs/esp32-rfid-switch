@@ -63,6 +63,8 @@ class RfidSwitchReader {
 public:
     bool begin(HardwareSerial *serial, uint8_t rxPin, uint8_t txPin,
                uint8_t region, uint16_t txPower);
+    bool sleepModule();
+    void wakeModule();
     bool hasValidTag(const RfidSwitchTagConfig &config);
 
 private:
@@ -74,6 +76,7 @@ private:
     static uint32_t parsePassword(const String &value);
 
     Unit_UHF_RFID reader;
+    bool initialized = false;
     uint8_t tidBuffer[RFID_SWITCH_MAX_TID_BYTES] = {0};
     uint8_t tokenBuffer[4] = {0};
 };

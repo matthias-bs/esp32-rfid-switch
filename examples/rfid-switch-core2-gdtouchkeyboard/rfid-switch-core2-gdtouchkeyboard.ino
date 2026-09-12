@@ -646,6 +646,10 @@ static bool connectShelly()
 
 static void enterSleep()
 {
+    if (!rfidReader.sleepModule())
+    {
+        log_w("[RFID] Module sleep command failed.");
+    }
     esp_sleep_enable_timer_wakeup(
         static_cast<uint64_t>(RFID_SLEEP_DURATION_SECONDS) * 1000000ULL);
 #if defined(RFID_SWITCH_VARIANT_RELAY)
@@ -656,6 +660,7 @@ static void enterSleep()
     else
     {
         esp_light_sleep_start();
+        rfidReader.wakeModule();
     }
 #else
     shelly.disconnect();
