@@ -78,7 +78,7 @@ bool RfidSwitchReader::begin(HardwareSerial *serial, uint8_t rxPin, uint8_t txPi
 
 bool RfidSwitchReader::sleepModule()
 {
-    return initialized && reader.sleep();
+    return !initialized || reader.sleep();
 }
 
 void RfidSwitchReader::wakeModule()
