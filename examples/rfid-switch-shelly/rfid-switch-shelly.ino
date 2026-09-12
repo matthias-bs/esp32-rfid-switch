@@ -290,6 +290,7 @@ void setup()
 void loop()
 {
     if (presenceController == nullptr) {
+        rfidReader.sleepModule();
         esp_sleep_enable_timer_wakeup(
             static_cast<uint64_t>(RFID_SLEEP_DURATION_SECONDS) * 1000000ULL);
         esp_deep_sleep_start();
@@ -299,6 +300,9 @@ void loop()
     rtcStateMagic = RTC_STATE_MAGIC;
     rtcSwitchEnabled = presenceController->isRelayEnabled();
     rtcMissedScans = presenceController->missedScanCount();
+    if (!rfidReader.sleepModule()) {
+        log_w("[RFID] Module sleep command failed.");
+    }
     shelly.disconnect();
 
     esp_sleep_enable_timer_wakeup(

@@ -40,7 +40,7 @@ The project is intended for periodic, low-power operation. Each wake performs an
 - Configuration stored in ESP32 non-volatile storage. The relay and standalone Shelly examples use a Wi-Fi configuration portal; the Core2 touch example uses local touchscreen configuration.
 - Local relay output or Shelly BLE output.
 - Periodic scanning with a compile-time presence-removal threshold (number of missed scans).
-- Low-power sleep between scans (compile-time defined interval).
+- Low-power sleep between scans (compile-time defined interval), including the UHF reader's module sleep mode.
 
 ## How It Works
 
@@ -50,7 +50,7 @@ If a token is configured, the reader also reads User Memory bank `0x03` using th
 
 A valid scan resets the missed-scan counter and enables the output. An invalid or absent scan increments the counter. The output turns off after the configured number of consecutive missed scans.
 
-The relay example wakes at the configured sleep interval, which defaults to five seconds (short interval to simplify testing; increase for actual application). The sleep mode depends on whether the relay's configured GPIO is RTC-capable. An RTC-capable GPIO is connected to the ESP32 RTC GPIO subsystem and can retain its output level through deep sleep using GPIO hold; otherwise the example uses light sleep. Shelly mode uses deep sleep on every cycle and reconnects to the Shelly device after waking.
+The relay example wakes at the configured sleep interval, which defaults to five seconds (short interval to simplify testing; increase for actual application). Before the ESP32 enters deep or light sleep, the UHF reader is put into its own module sleep mode. The reader is woken during the next initialization after deep sleep, or immediately after light sleep returns. The ESP32 sleep mode depends on whether the relay's configured GPIO is RTC-capable. An RTC-capable GPIO is connected to the ESP32 RTC GPIO subsystem and can retain its output level through deep sleep using GPIO hold; otherwise the example uses light sleep. Shelly mode uses deep sleep on every cycle, disconnects BLE, and wakes the reader again during the next initialization.
 
 The following flow describes the runtime behavior of both examples. The relay and Shelly branches differ in how they update the output and enter sleep.
 
@@ -379,7 +379,7 @@ In Shelly mode, the Core2 power LED shows the last confirmed Shelly relay state 
 
 ## Runtime Behavior
 
-The presence controller is called once per wake by both examples. The examples use their configured removal threshold:
+The presence controller is called once per wake by both examples. The examples put the initialized UHF reader into module sleep before the host sleep interval. A failed module-sleep acknowledgement is logged, but host sleep continues; a reader that is unavailable during initialization is not sent a module-sleep command. The examples use their configured removal threshold:
 
 | Condition | Result |
 | --- | --- |
