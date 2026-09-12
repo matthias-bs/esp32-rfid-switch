@@ -4,21 +4,12 @@
 [![GitHub release](https://img.shields.io/github/release/matthias-bs/esp32-rfid-switch?maxAge=3600)](https://github.com/matthias-bs/esp32-rfid-switch/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/matthias-bs/esp32-rfid-switch/blob/main/LICENSE)
 
-**WORK IN PROGRESS**
-
-## To Do
-
-- [x] Publish M5Unit-UHF-RFID fork
-- [x] Add RFID tag initialization sketch
-- [ ] Review and fix this documentation
-- [x] Add GitHub Action for CI
-- [ ] Add M5Unit-UHF-RFID power saving
 
 ## Overview
 
-An ESP32-based presence switch using an M5Stack UHF RFID reader. A configured RFID tag keeps an output active while it is detected. The project provides two Web Config examples and one M5Stack Core2 touch-configured example:
+An ESP32-based presence switch using an M5Stack UHF RFID reader in the `860-960 MHz` UHF RFID range, which allows to cover a distance of up to ~1 meter. A configured RFID tag keeps an output active while it is detected. The project provides two Web Config examples and one M5Stack Core2 touch-configured example:
 
-- `rfid-switch-relay` drives a local relay on the GPIO defined by the example; its current default is GPIO 47.
+- `rfid-switch-relay` drives a local relay on the GPIO defined by the example.
 - `rfid-switch-shelly` controls Switch 0 of a Shelly device over Bluetooth Low Energy (BLE).
 - `rfid-switch-core2-gdtouchkeyboard` combines both output paths for M5Stack Core2 and uses `GDTouchKeyboard` instead of the Web Config portal.
 
@@ -43,12 +34,13 @@ The project is intended for periodic, low-power operation. Each wake performs an
 
 ## Features
 
+- Maximum distance between RFID reader and tag: ~1 meter
 - EPC (Electronic Product Code) and TID (Tag Identifier) validation for a configured RFID tag.
 - Optional validation of a four-byte token stored in RFID User Memory.
 - Configuration stored in ESP32 non-volatile storage. The relay and standalone Shelly examples use a Wi-Fi configuration portal; the Core2 touch example uses local touchscreen configuration.
 - Local relay output or Shelly BLE output.
 - Periodic scanning with a compile-time presence-removal threshold (number of missed scans).
-- Low-power sleep between scans.
+- Low-power sleep between scans (compile-time defined interval).
 
 ## How It Works
 
@@ -101,26 +93,67 @@ The editable source is [`rfid-switch-runtime-flow.mmd`](rfid-switch-runtime-flow
 
 ## Hardware
 
-- **Featured target:** [Waveshare ESP32-S3-Relay-1CH](https://www.waveshare.com/esp32-s3-relay-1ch.htm), an ESP32-S3 board with an integrated one-channel relay in a rail-mount housing. See the manufacturer's [ESP32-S3-Relay-1CH Wiki](https://www.waveshare.com/wiki/ESP32-S3-Relay-1CH) for board documentation. In the Arduino IDE, select **ESP32S3 Dev Module** (FQBN `esp32:esp32:esp32s3`).
-- **Featured target:** [M5Stack Core2](https://docs.m5stack.com/en/core/core2), an ESP32-based controller with an AXP192- or AXP2101-family power-management chip, display, buttons, and M-BUS/Port A expansion. In the Arduino IDE, select the **M5Stack-Core2** board definition (FQBN `esp32:esp32:m5stack_core2`) and install the M5Unified library.
-- **Optional mounting accessory:** [M5Stack Guide Rail](https://docs.m5stack.com/en/accessory/guide_rail), an M5Base-series expansion base with spring-loaded rail mounting and M3 screw holes. It can be used when building a rail-mounted Core2 assembly.
-- M5Stack UHF RFID reader.
-- One or more compatible UHF RFID tags.
-- Either:
-  - a local relay connected to the relay example output, or
-  - a Shelly device that exposes Switch 0 through the supported BLE RPC library.
+Basically any ESP32 board can be used. The main features used are Wi-Fi for web configuration, UART interface for RFID reader communication and either a GPIO pin for direct relay control or Bluetooth Low Energy (BLE) for Shelly switch control.
+
+### RFID Reader and Tags
+
+The [M5Stack Unit UHF-RFID](https://docs.m5stack.com/en/unit/uhf_rfid) is used to scan, select, and read UHF RFID tags. The project uses the maintained [M5Unit-UHF-RFID library](https://github.com/matthias-bs/M5Unit-UHF-RFID) fork for reader communication.
+
+The reader and tags use the [EPCglobal UHF Class 1 Gen2 air-interface protocol](https://ref.gs1.org/standards/gen2/), standardized as [ISO/IEC 18000-63](https://www.iso.org/standard/73599.html), for UHF RFID operation in the 860-960 MHz range.
+
+The examples configure the reader for the European `865-868 MHz` band (reader region `3`); [ETSI EN 302 208](https://www.etsi.org/deliver/etsi_en/302200_302299/302208/03.03.01_60/en_302208v030301p.pdf) provides the regional radio requirements. Make sure the selected region and transmit power comply with local regulations.
+
+Use compatible [UHF RFID tags](https://en.wikipedia.org/wiki/Radio-frequency_identification) with EPC, TID, and optional User Memory. The [RFID tag writer example](examples/rfid-tag-write/rfid-tag-write.ino) identifies tags and initializes the values used by the switch examples.
+
+### Feature Targets
+
+#### Waveshare ESP32-S3-Relay-1CH
+
+[Waveshare ESP32-S3-Relay-1CH](https://www.waveshare.com/esp32-s3-relay-1ch.htm), an ESP32-S3 board with an integrated one-channel relay in a rail-mount housing. See the manufacturer's [ESP32-S3-Relay-1CH Wiki](https://www.waveshare.com/wiki/ESP32-S3-Relay-1CH) for board documentation.
+
+This module has a connector which provides a suitable interface to the RFID Reader.
 
 > [!NOTE]
-> On the featured Waveshare target, relay control uses GPIO 47, which is not RTC-capable. The relay example therefore uses light sleep rather than deep sleep, and the relay output cannot be retained through deep sleep. Other ESP32 hardware may use a different relay GPIO; check the existing hardware definition before changing the example.
+> On the Waveshare target, relay control uses GPIO 47, which is not RTC-capable. The relay example therefore uses light sleep rather than deep sleep, because the relay output cannot be retained through deep sleep. Other ESP32 hardware may use a different relay GPIO; check the existing hardware definition before changing the example.
+
+#### M5Stack Core2
+
+I selected this target, because I already had it in stock and it seemed to be a natural choice for connecting the M5Unit-UHF-RFID.
+
+[M5Stack Core2](https://docs.m5stack.com/en/core/core2) is an ESP32-based controller with an AXP192- or AXP2101-family power-management chip, touch display, buttons, and M-BUS/Port A expansion.
+
+In the Arduino IDE, select the **M5Stack-Core2** board definition (FQBN `esp32:esp32:m5stack_core2`) and install the M5Unified library.
+
+[M5Stack Guide Rail](https://docs.m5stack.com/en/accessory/guide_rail), an M5Base-series expansion base with spring-loaded rail mounting and M3 screw holes. It can be used when building a rail-mounted Core2 assembly.
+
+Suitable [M5Stack actuator units](https://docs.m5stack.com/en/products?id=UnitActuator_id):
+* [Unit Relay](https://docs.m5stack.com/en/unit/relay)
+* [2Relay Unit](https://docs.m5stack.com/en/unit/2relay)
+* [Unit SSR](https://docs.m5stack.com/en/unit/ssr).
+
+The 2Relay and Unit Relay provide mechanically switched relay outputs, while the Unit SSR provides zero-crossing solid-state switching for AC loads. Check each unit's voltage, load, and wiring specifications before use. See [Electrical safety](#electrical-safety).
 
 > [!NOTE]
 > On the featured M5Stack Core2 target, the relay variants use GPIO 32 on Port A (yellow pin). GPIO 32 is RTC-capable, so the relay variants use deep sleep with GPIO hold to retain the relay state between scans. The relay Web Config example switches the display off during runtime and uses the Core2 PMIC power LED as a relay-state indicator; the LED blinks while Web Config is active. The Core2 touch example uses the display during local configuration and switches the backlight off when configuration closes.
 
 ### Electrical safety
 
-The Shelly wiring option can involve 230 V mains voltage. Shelly pins may carry lethal voltage and are not necessarily galvanically isolated from mains. Do not connect or change external wiring while the device is energized. Use an enclosure, suitable clearances, and appropriate mains-rated components, and have installation performed by a qualified person.
+The relay and Shelly wiring option can involve 230 V mains voltage. Shelly pins may carry lethal voltage and are not necessarily galvanically isolated from mains. Do not connect or change external wiring while the device is energized. Observe the relay's / Shelly device's maximum current ratings. Use an enclosure, suitable clearances (including the relay's coil and switch side), and appropriate mains-rated components, and have installation performed by a qualified person.
 
-The ESP32 uses 3.3 V logic. Check voltage levels before connecting any signal. This example does not use, and must not be wired to, the Shelly device's internal connector.
+The ESP32 uses 3.3 V logic. Check voltage levels before connecting any signal. You must use an appropriate driver for controlling a relay via GPIO. This example does not use, and must not be wired to, the Shelly device's internal connector.
+
+### Leassons learned
+
+#### Grove connection wire colors
+
+> [!CAUTION]
+> Grove connection cables do not always follow a common color coding standard! While M5Stack's cables have black - red - **yellow** - **white**, there are other cables which have black - red - **white** - **yellow**. This does not matter for a one-to-one connection, but it does for sure if you are using custom wiring.
+
+#### M5Unit-UHF-RFID range issues
+
+The tag detection range seems to be dependent on the M5Unit-UHF-RFID's power supply quality.
+
+**Work in progress**
 
 ## Dependencies
 
@@ -148,9 +181,13 @@ You also need an ESP32 Arduino core and a board definition compatible with the s
 3. Open one of the example sketches under `examples/`.
 4. Select the target ESP32 board and serial port.
 5. Compile and upload the sketch.
-6. For `rfid-switch-relay` and `rfid-switch-shelly`, connect to the configuration access point on first startup and enter the RFID settings. For `rfid-switch-core2-gdtouchkeyboard`, enter the settings through the local touchscreen configuration menu. Shelly variants also require a Shelly address or name filter.
+6. For `rfid-switch-relay` and `rfid-switch-shelly`, connect to the configuration access point on first startup and enter the RFID settings. For `rfid-switch-core2-gdtouchkeyboard`, enter the settings through the local touchscreen configuration menu. Shelly switch variants also require a Shelly BLE address or name filter.
 
-For the featured Waveshare target, select the ESP32 Arduino board definition with FQBN `esp32:esp32:esp32s3`. For the featured M5Stack Core2 target, compile with FQBN `esp32:esp32:m5stack_core2`. This repository does not include an IDE project file, so the board and serial port must still be selected in your local Arduino environment.
+For the featured Waveshare target, select the ESP32 Arduino board definition with FQBN `esp32:esp32:esp32s3`.
+
+For the featured M5Stack Core2 target, compile with FQBN `esp32:esp32:m5stack_core2`.
+
+This repository does not include an IDE project file, so the board and serial port must still be selected in your local Arduino environment.
 
 ## Wiring
 
@@ -160,22 +197,32 @@ All sketches use the same RFID UART mapping for a given board:
 
 | Board | RFID reader RX | RFID reader TX |
 | --- | ---: | ---: |
-| ESP32-S3 Dev Module | 1 | 2 |
+| Waveshare ESP32-S3-Relay-1CH | 1 | 2 |
 | M5Stack Core2 (Port C) | 13 | 14 |
 | ESP32 Dev Module | 16 | 17 |
 
-The reader's RX pin is the ESP32 receive input and must connect to the
-reader's TX signal. The reader's TX pin is the ESP32 transmit output and must
-connect to the reader's RX signal.
+For the Waveshare ESP32-S3-Relay-1CH, the SH1.0 connector (J5 in the [schematic](https://files.waveshare.com/wiki/ESP32-S3-Relay-1CH/ESP32-S3-Relay-1CH-schematic.pdf)) is wired as follows:
 
-Confirm the reader's power requirements and logic levels for your particular hardware.
-
-The examples use Europe region `3` and TX power `2600`. Make sure the selected region and transmit power comply with local regulations.
+| SH1.0 pin | Signal | Function |
+| ---: | --- | --- |
+| 1 | GPIO1 | ESP32-S3 IO; connect to the RFID reader TX signal |
+| 2 | GPIO2 | ESP32-S3 IO; connect to the RFID reader RX signal |
+| 3 | 3V3 | 3.3 V power output |
+| 4 | GND | Ground |
 
 For the featured M5Stack Core2 target, connect the M5Stack UHF RFID reader to
 Port A. Use the Port A power and ground connections as specified by the reader
 and Core2 documentation. The sketches select these pins automatically when
 `ARDUINO_M5STACK_CORE2` is defined.
+
+The ESP32 RX pin must connect to the RFID reader's TX signal, and the ESP32 TX
+pin must connect to the RFID reader's RX signal. Additionally, the reader's
+GND pin must be connected to the common ground of the target board and the 5V
+power supply.
+
+Confirm the reader's power requirements and logic levels for your particular hardware.
+
+The examples use Europe region `3` and TX power `2600`. Make sure the selected region and transmit power comply with local regulations.
 
 ### Local relay
 
@@ -183,8 +230,8 @@ The examples with a local relay output use these board-specific pins:
 
 | Example | Board | Local relay output |
 | --- | --- | ---: |
-| `rfid-switch-relay` | ESP32-S3 Dev Module | 47 |
-| `rfid-switch-relay` | M5Stack Core2 | 32 (Port A, yellow) |
+| `rfid-switch-relay` | Waveshare ESP32-S3-Relay-1CH | 47 (on-board connection) |
+| `rfid-switch-relay` | M5Stack Core2 | 32 (Port A, yellow wire) |
 | `rfid-switch-relay` | ESP32 Dev Module | 5 |
 | `rfid-switch-core2-gdtouchkeyboard` relay variant | M5Stack Core2 | 32 (Port A, yellow wire) |
 
@@ -192,8 +239,6 @@ The relay module must be suitable for the load and powered according to its
 specifications. Do not connect mains wiring directly to an ESP32 GPIO.
 
 For the featured M5Stack Core2 target, connect the relay input to GPIO 32 on Port A (the yellow signal pin). The sketch drives the relay input HIGH for enabled and LOW for disabled. Because GPIO 32 supports RTC GPIO hold, the output state is retained while the relay example is in deep sleep.
-
-Suitable M5Stack actuator units include the [2Relay Unit](https://docs.m5stack.com/en/unit/2relay), the [Unit Relay](https://docs.m5stack.com/en/unit/relay), and the [Unit SSR](https://docs.m5stack.com/en/unit/ssr). The 2Relay and Unit Relay provide mechanically switched relay outputs, while the Unit SSR provides zero-crossing solid-state switching for AC loads. Check each unit's voltage, load, and wiring specifications before use. See [Electrical safety](#electrical-safety).
 
 Relay state retention during sleep depends on whether the selected relay GPIO supports RTC hold on the board. The sketch detects this capability and falls back to light sleep when it is unavailable.
 
@@ -207,7 +252,7 @@ The built-in power LED is controlled through the Core2 power-management chip wit
 
 The Shelly example communicates with the configured Shelly device over BLE and controls Switch 0. Direct BLE address configuration takes precedence over name-based scanning. If no address is configured, the example scans for five seconds and applies the configured name filter.
 
-Do not infer a safe mains wiring arrangement from the low-voltage UART wiring above. Follow the Shelly model's documentation and the safety requirements in [Electrical safety](#electrical-safety).
+Follow the Shelly model's documentation and the safety requirements in [Electrical safety](#electrical-safety).
 
 ## Tag Preparation and Writing
 
@@ -257,7 +302,7 @@ The `rfid-switch-relay` and `rfid-switch-shelly` examples use a Wi-Fi configurat
 
 ![Web Config portal](docs/webconfig.png)
 
-For these two examples, connect to the access point, open the portal, and enter the RFID fields described in [Tag Preparation and Writing](#tag-preparation-and-writing). The shared configuration is stored in the NVS namespace `rfid-switch` under the fields `configured`, `epc`, `tid`, `password`, `token`, `ble_address`, and `name_filter`.
+For these two examples, connect to the Wi-Fi access point, open the portal, and enter the RFID fields described in [Tag Preparation and Writing](#tag-preparation-and-writing). The shared configuration is stored in the NVS namespace `rfid-switch` under the fields `configured`, `epc`, `tid`, `password`, `token`, `ble_address`, and `name_filter`.
 
 Configuration entry and re-entry are supported as follows. The startup window is the first three seconds after power-on or reset. 'Reader-disconnect discovery' means starting with the RFID reader disconnected; after a power-on or reset, failed reader initialization starts the configuration re-entry. Pressing the dedicated button during the startup window triggers the configuration re-entry. BOOT/GPIO 0 is the default, which can be changed with the define `CONFIG_PIN`.
 
@@ -300,9 +345,9 @@ The Shelly example controls the Core2 power-management LED directly over the int
 
 ### `rfid-switch-core2-gdtouchkeyboard`
 
-Use this example on an M5Stack Core2 when configuration should be entered locally on the touchscreen instead of through a Wi-Fi access point. It does not start the Web Config portal. The sketch contains both the relay and Shelly BLE output paths, selected at compile time with `RFID_SWITCH_VARIANT_RELAY` or `RFID_SWITCH_VARIANT_SHELLY`. The relay variant is selected by default.
+Use this example on an M5Stack Core2 when configuration should be entered locally on the touchscreen instead of through a Wi-Fi access point. It does not provide a Web Config portal. The sketch contains both the relay and Shelly BLE output paths, selected at compile time with `RFID_SWITCH_VARIANT_RELAY` or `RFID_SWITCH_VARIANT_SHELLY`. The relay variant is selected by default.
 
-To build the Shelly variant, define `RFID_SWITCH_VARIANT_SHELLY`. To build the relay variant explicitly, define `RFID_SWITCH_VARIANT_RELAY`:
+To build the Shelly variant, define `RFID_SWITCH_VARIANT_SHELLY`. To build the relay variant explicitly, define `RFID_SWITCH_VARIANT_RELAY`, either in the source code or via compile command parameter:
 
 ```text
 arduino-cli compile --fqbn esp32:esp32:m5stack_core2 \
@@ -369,9 +414,9 @@ Do not use this project as the sole security control for safety-critical access,
 
 - Confirm that the sketch is running and the ESP32 has completed reset.
 - Check that the device is not already configured.
-- In the relay example, press the Core2 virtual Button A during the first three seconds after reset. On other supported boards, hold BOOT/GPIO 0 low during that window.
+- In the relay example, press the Core2 virtual Button A during the first three seconds after reset. On other supported boards, hold BOOT/GPIO 0 (or your custom button) low during that window.
 - In the standalone Shelly example on Core2, disconnect the RFID reader before power-on or reset. The portal starts after reader initialization fails.
-- Connect to `RFID-Switch-Setup` and browse to `192.168.4.1`.
+- Connect via Wi-Fi to `RFID-Switch-Setup` and browse to `192.168.4.1`.
 - Check serial output and allow for the five-minute portal timeout.
 
 ### A known tag is rejected
