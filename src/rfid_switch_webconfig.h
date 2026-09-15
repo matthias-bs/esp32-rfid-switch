@@ -7,7 +7,7 @@
 // EPC and TID are required for tag acceptance; password and token are optional.
 // Configure a Shelly BLE address or an exact, case-sensitive device name.
 //
-// https://github.com/matthias-bs/rfid-switch
+// https://github.com/matthias-bs/esp32-rfid-switch
 //
 //
 // created: 07/2026

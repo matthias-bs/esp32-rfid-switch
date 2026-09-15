@@ -9,7 +9,7 @@
 // Presence of the tag will keep the relay activated. When the tag is removed, the relay will
 // be deactivated after a configurable delay.
 //
-// https://github.com/matthias-bs/rfid-switch
+// https://github.com/matthias-bs/esp32-rfid-switch
 //
 //
 // created: 07/2026
