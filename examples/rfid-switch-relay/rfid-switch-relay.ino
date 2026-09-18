@@ -9,7 +9,7 @@
 // Presence of the tag will keep the relay activated. When the tag is removed, the relay will
 // be deactivated after a configurable delay.
 //
-// https://github.com/matthias-bs/rfid-switch
+// https://github.com/matthias-bs/esp32-rfid-switch
 //
 //
 // created: 07/2026
@@ -252,6 +252,9 @@ static void shutdownWifi() {
 }
 
 static void enterSleep() {
+    if (!rfidReader.sleepModule()) {
+        log_w("[RFID] Module sleep command failed.");
+    }
     log_i("[SLEEP] Sleeping for %lu s (%s)",
           static_cast<unsigned long>(RFID_SLEEP_DURATION_SECONDS),
           RELAY_PIN_IS_RTC_CAPABLE ? "deep sleep" : "light sleep");
@@ -262,6 +265,7 @@ static void enterSleep() {
         esp_deep_sleep_start();
     } else {
         esp_light_sleep_start();
+        rfidReader.wakeModule();
     }
 }
 

@@ -52,7 +52,11 @@
 bool RfidSwitchReader::begin(HardwareSerial *serial, uint8_t rxPin, uint8_t txPin,
                              uint8_t region, uint16_t txPower)
 {
+    initialized = false;
     reader.begin(serial, 115200, rxPin, txPin, false);
+    if (!reader.exitIdleMode()) {
+        return false;
+    }
 
     bool readerAvailable = false;
     for (uint8_t attempt = 0; attempt < 5; ++attempt) {
@@ -70,7 +74,22 @@ bool RfidSwitchReader::begin(HardwareSerial *serial, uint8_t rxPin, uint8_t txPi
         return false;
     }
 
-    return reader.setTxPower(txPower);
+    initialized = reader.setTxPower(txPower);
+    return initialized;
+}
+
+bool RfidSwitchReader::sleepModule()
+{
+    return !initialized || reader.enterIdleMode(0);
+}
+
+void RfidSwitchReader::wakeModule()
+{
+    if (initialized) {
+        if (!reader.exitIdleMode()) {
+            log_w("[RFID] Module idle-mode exit failed.");
+        }
+    }
 }
 
 bool RfidSwitchReader::hasValidTag(const RfidSwitchTagConfig &config)
