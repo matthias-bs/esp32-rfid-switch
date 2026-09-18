@@ -54,7 +54,9 @@ bool RfidSwitchReader::begin(HardwareSerial *serial, uint8_t rxPin, uint8_t txPi
 {
     initialized = false;
     reader.begin(serial, 115200, rxPin, txPin, false);
-    reader.wakeup();
+    if (!reader.exitIdleMode()) {
+        return false;
+    }
 
     bool readerAvailable = false;
     for (uint8_t attempt = 0; attempt < 5; ++attempt) {
@@ -78,13 +80,15 @@ bool RfidSwitchReader::begin(HardwareSerial *serial, uint8_t rxPin, uint8_t txPi
 
 bool RfidSwitchReader::sleepModule()
 {
-    return !initialized || reader.sleep();
+    return !initialized || reader.enterIdleMode(0);
 }
 
 void RfidSwitchReader::wakeModule()
 {
     if (initialized) {
-        reader.wakeup();
+        if (!reader.exitIdleMode()) {
+            log_w("[RFID] Module idle-mode exit failed.");
+        }
     }
 }
 
