@@ -416,14 +416,25 @@ static uint8_t waitForConfigurationAction()
 
 static String readConfigurationField(const ConfigField &field)
 {
+    GDTouchKeyboard::color_scheme_t scheme;
+    scheme.background = TFT_BLACK;
+    scheme.inputText = TFT_WHITE;
+    scheme.promptText = TFT_DARKGREY;
+    scheme.cursor = 0x0ad9;
+    scheme.keyBackground = BLACK;
+    scheme.keyBorder = 0x0ad9;
+    scheme.keyText = WHITE;
+    scheme.controlText = TFT_WHITE;
+    GDTK.setColorScheme(scheme);
+
     GDTK.setTouchFeedback(true);
     GDTK.setAvailableModes(field.availableModes);
     GDTK.setInputLength(field.minimumLength, field.maximumLength);
     GDTK.setInputValidator(field.kind == CONFIG_NAME
                                ? validateNameInput
                                : validateKeyboardInput);
-    return GDTK.run(*field.value, 0x0ad9, true, &fonts::Font0,
-                    field.initialMode, true, field.prompt);
+    return GDTK.run(*field.value, GDTouchKeyboard::COLOR_SCHEME_UNCHANGED,
+                    true, &fonts::Font0, field.initialMode, true, field.prompt);
 }
 
 static void saveTouchConfiguration()
